@@ -1,5 +1,11 @@
 document.addEventListener("DOMContentLoaded", () => {
   initStarPickers();
+
+  const bookId = document.body.dataset.bookId;
+  const memberId = document.body.dataset.memberId;
+
+  if (bookId) loadGroupRec(bookId);
+  if (memberId) loadMemberRec(memberId);
 });
 
 function initStarPickers() {
@@ -33,9 +39,8 @@ function setActive(stars, value) {
 
 async function loadGroupRec(bookId) {
   const body = document.getElementById("groupRecBody");
-  const btn = document.getElementById("getRecommendBtn");
+  if (!body) return;
   body.innerHTML = `<div class="rec-spinner"><div class="spinner-border spinner-border-sm"></div> Generating recommendation…</div>`;
-  if (btn) btn.disabled = true;
 
   try {
     const res = await fetch(`/books/${bookId}/recommend`);
@@ -43,13 +48,12 @@ async function loadGroupRec(bookId) {
     body.innerHTML = `<p class="rec-text mb-0">${escapeHtml(data.recommendation)}</p>`;
   } catch {
     body.innerHTML = `<p class="text-danger mb-0">Failed to load recommendation. Check your API key.</p>`;
-  } finally {
-    if (btn) btn.disabled = false;
   }
 }
 
 async function loadMemberRec(memberId) {
   const body = document.getElementById("memberRecBody");
+  if (!body) return;
   body.innerHTML = `<div class="rec-spinner"><div class="spinner-border spinner-border-sm"></div> Generating personalised recommendation…</div>`;
 
   try {

@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% block title %}{{ member.name }} – Book Club Tracker{% endblock %}
+{% if rated_books and has_api_key %}{% block body_data %}data-member-id="{{ member.id }}"{% endblock %}{% endif %}
 
 {% block content %}
 <nav aria-label="breadcrumb" class="mb-3">
@@ -106,21 +107,12 @@
   <!-- Right: personalised recommendation -->
   <div class="col-lg-5">
     <div class="card">
-      <div class="card-header fw-semibold d-flex justify-content-between align-items-center">
-        Personal Recommendation
-        {% if rated_books and has_api_key %}
-          <button class="btn btn-sm btn-outline-primary" onclick="loadMemberRec({{ member.id }})">
-            Get Recommendation
-          </button>
-        {% endif %}
-      </div>
+      <div class="card-header fw-semibold">Personal Recommendation</div>
       <div class="card-body" id="memberRecBody">
         <p class="text-muted mb-0">
           {% if not has_api_key %}
             Recommendations require an Anthropic API key.
-          {% elif rated_books %}
-            Click "Get Recommendation" for personalised book picks based on {{ member.name }}'s Gonder Scale ratings.
-          {% else %}
+          {% elif not rated_books %}
             Rate some books first to generate personalised recommendations.
           {% endif %}
         </p>

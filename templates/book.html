@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% block title %}{{ book.title }} – Book Club Tracker{% endblock %}
+{% if book.ratings and has_api_key %}{% block body_data %}data-book-id="{{ book.id }}"{% endblock %}{% endif %}
 
 {% block content %}
 {% set avg = book.average() %}
@@ -114,21 +115,12 @@
     {% endif %}
 
     <div class="card">
-      <div class="card-header fw-semibold d-flex justify-content-between align-items-center">
-        Group Recommendation
-        {% if book.ratings and has_api_key %}
-          <button class="btn btn-sm btn-outline-primary" id="getRecommendBtn" onclick="loadGroupRec({{ book.id }})">
-            Get Recommendation
-          </button>
-        {% endif %}
-      </div>
+      <div class="card-header fw-semibold">Group Recommendation</div>
       <div class="card-body" id="groupRecBody">
         <p class="text-muted mb-0">
           {% if not has_api_key %}
             Recommendations require an Anthropic API key.
-          {% elif book.ratings %}
-            Click "Get Recommendation" to see AI-powered book suggestions based on the group's rating history.
-          {% else %}
+          {% elif not book.ratings %}
             Record ratings first to generate a group recommendation.
           {% endif %}
         </p>
