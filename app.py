@@ -15,8 +15,12 @@ db.init_app(app)
 
 
 @app.context_processor
-def inject_api_flag():
-    return {"has_api_key": app.config["HAS_API_KEY"]}
+def inject_globals():
+    logo_path = os.path.join(app.static_folder, "logo.png")
+    return {
+        "has_api_key": app.config["HAS_API_KEY"],
+        "logo_exists": os.path.exists(logo_path),
+    }
 
 
 @app.before_request

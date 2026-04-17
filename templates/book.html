@@ -37,7 +37,7 @@
         {% if avg is not none %}
           <div class="text-center py-3">
             <div class="gonder-score {% if approved %}approved-score{% endif %}">{{ "%.2f"|format(avg) }}</div>
-            <div class="text-muted">Gonder Scale average</div>
+            <div class="gonder-label">Gonder Scale</div>
             <div class="stars my-2">
               {% for i in range(1, 6) %}
                 <span class="star {% if i <= avg|round(0, 'floor') %}filled{% endif %}">★</span>

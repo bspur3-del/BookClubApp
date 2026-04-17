@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}Book Club Tracker{% endblock %}
+{% block title %}The Gonder Scale{% endblock %}
 
 {% block content %}
 <div class="row g-4">
@@ -7,7 +7,7 @@
   <!-- Left column: Books -->
   <div class="col-lg-8">
     <div class="d-flex align-items-center justify-content-between mb-3">
-      <h2 class="mb-0">Monthly Books</h2>
+      <div class="page-heading mb-0">Monthly Books</div>
       <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#addBookModal">
         + Add Book
       </button>
@@ -38,7 +38,7 @@
                   {% if avg is not none %}
                     <div class="mt-2">
                       <span class="rating-display">{{ "%.2f"|format(avg) }}</span>
-                      <span class="text-muted small">/ 5 Gonder Scale</span>
+                      <span class="gonder-label">/ 5 &nbsp;Gonder Scale</span>
                       <div class="stars mt-1">
                         {% for i in range(1, 6) %}
                           <span class="star {% if i <= avg|round(0, 'floor') %}filled{% endif %}">★</span>
@@ -67,7 +67,7 @@
   <!-- Right column: Members -->
   <div class="col-lg-4">
     <div class="d-flex align-items-center justify-content-between mb-3">
-      <h2 class="mb-0">Members</h2>
+      <div class="page-heading mb-0">Members</div>
       <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#addMemberModal">
         + Add Member
       </button>
