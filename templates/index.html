@@ -1,5 +1,7 @@
 {% extends "base.html" %}
 {% block title %}The Gonder Scale{% endblock %}
+{% set has_rated_books = books | selectattr('ratings') | list | length > 0 %}
+{% if has_rated_books and has_api_key %}{% block body_data %}data-club-page="true"{% endblock %}{% endif %}
 
 {% block content %}
 <div class="row g-4">
@@ -117,6 +119,15 @@
           <div class="progress-bar bg-success" style="width: {{ pct }}%"></div>
         </div>
         <p class="small text-muted mt-1 mb-0">{{ approved_count }} of {{ books|length }} book{{ 's' if books|length != 1 }} approved</p>
+      </div>
+    </div>
+    {% endif %}
+
+    {% if has_rated_books and has_api_key %}
+    <div class="card mt-3">
+      <div class="card-header fw-semibold">Club Reading Personality</div>
+      <div class="card-body" id="clubPersonalityBody">
+        <div class="rec-spinner"><div class="spinner-border spinner-border-sm"></div> Analyzing your club's taste…</div>
       </div>
     </div>
     {% endif %}

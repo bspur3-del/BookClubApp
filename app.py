@@ -1,7 +1,10 @@
 import os
 from flask import Flask, render_template, request, redirect, url_for, flash, jsonify
 from models import db, Member, Book, Rating, APPROVAL_THRESHOLD
-from recommendations import get_group_recommendation, get_member_recommendation
+from recommendations import (
+    get_group_recommendation, get_member_recommendation,
+    get_member_personality, get_group_personality,
+)
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -89,6 +92,25 @@ def member_recommend(member_id):
     return jsonify({"recommendation": rec})
 
 
+@app.route("/members/<int:member_id>/personality")
+def member_personality(member_id):
+    member = Member.query.get_or_404(member_id)
+    rated_books = (
+        db.session.query(Book, Rating)
+        .join(Rating, Rating.book_id == Book.id)
+        .filter(Rating.member_id == member_id)
+        .all()
+    )
+    if not rated_books:
+        return jsonify({"personality": "Rate some books first to discover your reading personality!"})
+    history = [
+        {"title": b.title, "author": b.author, "rating": r.rating}
+        for b, r in rated_books
+    ]
+    personality = get_member_personality(member.name, history)
+    return jsonify({"personality": personality})
+
+
 # ── Books ──────────────────────────────────────────────────────────────────────
 
 @app.route("/")
@@ -125,6 +147,49 @@ def book_detail(book_id):
     existing = {r.member_id: r.rating for r in book.ratings}
     return render_template("book.html", book=book, members=members,
                            existing=existing, approval_threshold=APPROVAL_THRESHOLD)
+
+
+@app.route("/club/personality")
+def club_personality():
+    all_books = Book.query.all()
+    history = []
+    for b in all_books:
+        if b.ratings:
+            avg = b.average()
+            history.append({
+                "title": b.title,
+                "author": b.author,
+                "average_rating": round(avg, 2),
+                "approved": b.is_approved,
+            })
+    if not history:
+        return jsonify({"personality": "Rate some books first to discover the club's reading personality!"})
+    personality = get_group_personality(history)
+    return jsonify({"personality": personality})
+
+
+@app.route("/books/<int:book_id>/edit", methods=["POST"])
+def edit_book(book_id):
+    book = Book.query.get_or_404(book_id)
+    title = request.form.get("title", "").strip()
+    author = request.form.get("author", "").strip()
+    month = request.form.get("month", type=int)
+    year = request.form.get("year", type=int)
+    nominator_id = request.form.get("nominator_id", type=int) or None
+    if not all([title, author, month, year]):
+        flash("All book fields are required.", "danger")
+        return redirect(url_for("book_detail", book_id=book_id))
+    if not (1 <= month <= 12):
+        flash("Month must be between 1 and 12.", "danger")
+        return redirect(url_for("book_detail", book_id=book_id))
+    book.title = title
+    book.author = author
+    book.month = month
+    book.year = year
+    book.nominator_id = nominator_id
+    db.session.commit()
+    flash(f'"{title}" updated.', "success")
+    return redirect(url_for("book_detail", book_id=book_id))
 
 
 @app.route("/books/<int:book_id>/delete", methods=["POST"])

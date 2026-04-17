@@ -7,7 +7,7 @@ MONTH_NAMES = [
     "July", "August", "September", "October", "November", "December"
 ]
 
-APPROVAL_THRESHOLD = 3.67
+APPROVAL_THRESHOLD = 3.6
 
 
 class Member(db.Model):
