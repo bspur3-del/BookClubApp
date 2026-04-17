@@ -19,7 +19,12 @@
       <div class="card-header d-flex justify-content-between align-items-center">
         <div>
           <h4 class="mb-0">{{ book.title }}</h4>
-          <small class="text-muted">by {{ book.author }} &middot; {{ book.display_period() }}</small>
+          <small class="text-muted">
+            by {{ book.author }} &middot; {{ book.display_period() }}
+            {% if book.nominator %}&middot; nominated by
+              <a href="{{ url_for('member_profile', member_id=book.nominator.id) }}">{{ book.nominator.name }}</a>
+            {% endif %}
+          </small>
         </div>
         {% if approved %}
           <span class="badge approved-badge fs-6">✓ Book Club Approved</span>

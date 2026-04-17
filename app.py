@@ -98,13 +98,14 @@ def add_book():
     author = request.form.get("author", "").strip()
     month = request.form.get("month", type=int)
     year = request.form.get("year", type=int)
+    nominator_id = request.form.get("nominator_id", type=int) or None
     if not all([title, author, month, year]):
         flash("All book fields are required.", "danger")
         return redirect(url_for("index"))
     if not (1 <= month <= 12):
         flash("Month must be between 1 and 12.", "danger")
         return redirect(url_for("index"))
-    db.session.add(Book(title=title, author=author, month=month, year=year))
+    db.session.add(Book(title=title, author=author, month=month, year=year, nominator_id=nominator_id))
     db.session.commit()
     flash(f'"{title}" added.', "success")
     return redirect(url_for("index"))

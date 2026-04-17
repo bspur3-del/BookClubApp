@@ -31,7 +31,10 @@
                       <span class="badge approved-badge">✓ Approved</span>
                     {% endif %}
                   </div>
-                  <p class="card-text mt-2 small text-muted">{{ book.display_period() }}</p>
+                  <p class="card-text mt-2 small text-muted">
+                    {{ book.display_period() }}
+                    {% if book.nominator %}· nominated by {{ book.nominator.name }}{% endif %}
+                  </p>
                   {% if avg is not none %}
                     <div class="mt-2">
                       <span class="rating-display">{{ "%.2f"|format(avg) }}</span>
@@ -152,6 +155,15 @@
               <label class="form-label">Year</label>
               <input type="number" name="year" class="form-control" value="2026" min="2000" max="2100" required>
             </div>
+          </div>
+          <div class="mb-3 mt-3">
+            <label class="form-label">Nominated by</label>
+            <select name="nominator_id" class="form-select">
+              <option value="">— Unknown —</option>
+              {% for member in members %}
+                <option value="{{ member.id }}">{{ member.name }}</option>
+              {% endfor %}
+            </select>
           </div>
         </div>
         <div class="modal-footer">

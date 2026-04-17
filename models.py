@@ -21,6 +21,13 @@ class Member(db.Model):
             return None
         return sum(r.rating for r in self.ratings) / len(self.ratings)
 
+    def nomination_average(self):
+        """Average group rating across all books this member nominated."""
+        scored = [b.average() for b in self.nominations if b.average() is not None]
+        if not scored:
+            return None
+        return sum(scored) / len(scored)
+
 
 class Book(db.Model):
     __tablename__ = "books"
@@ -29,6 +36,8 @@ class Book(db.Model):
     author = db.Column(db.String(200), nullable=False)
     month = db.Column(db.Integer, nullable=False)
     year = db.Column(db.Integer, nullable=False)
+    nominator_id = db.Column(db.Integer, db.ForeignKey("members.id"), nullable=True)
+    nominator = db.relationship("Member", foreign_keys=[nominator_id], backref="nominations")
     ratings = db.relationship("Rating", backref="book", lazy=True, cascade="all, delete-orphan")
 
     def month_name(self):

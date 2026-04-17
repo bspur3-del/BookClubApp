@@ -23,6 +23,12 @@
         {% else %}
           <p class="text-muted">No ratings yet.</p>
         {% endif %}
+        {% set nom_avg = member.nomination_average() %}
+        {% if nom_avg is not none %}
+          <hr class="my-3">
+          <div class="fw-semibold">{{ "%.2f"|format(nom_avg) }} <span class="text-muted fw-normal fs-6">avg group rating for their nominations</span></div>
+          <p class="text-muted small mb-0">across {{ member.nominations|length }} nominated book{{ 's' if member.nominations|length != 1 }}</p>
+        {% endif %}
       </div>
     </div>
 
@@ -62,6 +68,33 @@
           {% endfor %}
         </ul>
       </div>
+    {% if member.nominations %}
+      <div class="card mt-3">
+        <div class="card-header fw-semibold">Books Nominated</div>
+        <ul class="list-group list-group-flush">
+          {% for book in member.nominations | sort(attribute='year', reverse=True) %}
+            {% set group_avg = book.average() %}
+            <li class="list-group-item d-flex justify-content-between align-items-center">
+              <div>
+                <a href="{{ url_for('book_detail', book_id=book.id) }}" class="fw-medium text-decoration-none">{{ book.title }}</a>
+                <div class="small text-muted">{{ book.display_period() }}</div>
+              </div>
+              <div class="text-end">
+                {% if group_avg is not none %}
+                  <span class="fw-bold">{{ "%.2f"|format(group_avg) }}/5</span>
+                  {% if book.is_approved %}
+                    <span class="badge approved-badge ms-1">✓ Approved</span>
+                  {% endif %}
+                {% else %}
+                  <span class="text-muted small">no ratings yet</span>
+                {% endif %}
+              </div>
+            </li>
+          {% endfor %}
+        </ul>
+      </div>
+    {% endif %}
+
     {% else %}
       <div class="empty-state text-center py-5">
         <div class="display-4">🔖</div>
