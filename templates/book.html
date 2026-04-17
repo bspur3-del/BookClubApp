@@ -111,7 +111,7 @@
     <div class="card">
       <div class="card-header fw-semibold d-flex justify-content-between align-items-center">
         Group Recommendation
-        {% if book.ratings %}
+        {% if book.ratings and has_api_key %}
           <button class="btn btn-sm btn-outline-primary" id="getRecommendBtn" onclick="loadGroupRec({{ book.id }})">
             Get Recommendation
           </button>
@@ -119,7 +119,9 @@
       </div>
       <div class="card-body" id="groupRecBody">
         <p class="text-muted mb-0">
-          {% if book.ratings %}
+          {% if not has_api_key %}
+            Recommendations require an Anthropic API key.
+          {% elif book.ratings %}
             Click "Get Recommendation" to see AI-powered book suggestions based on the group's rating history.
           {% else %}
             Record ratings first to generate a group recommendation.

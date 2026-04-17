@@ -10,7 +10,13 @@ app = Flask(__name__)
 app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///bookclub.db"
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 app.secret_key = os.environ.get("SECRET_KEY", "dev-secret-key")
+app.config["HAS_API_KEY"] = bool(os.environ.get("ANTHROPIC_API_KEY"))
 db.init_app(app)
+
+
+@app.context_processor
+def inject_api_flag():
+    return {"has_api_key": app.config["HAS_API_KEY"]}
 
 
 @app.before_request
