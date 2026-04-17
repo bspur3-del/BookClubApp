@@ -82,7 +82,10 @@ def member_recommend(member_id):
         {"title": b.title, "author": b.author, "rating": r.rating}
         for b, r in rated_books
     ]
-    rec = get_member_recommendation(member.name, history)
+    try:
+        rec = get_member_recommendation(member.name, history)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
     return jsonify({"recommendation": rec})
 
 
@@ -149,7 +152,10 @@ def book_recommend(book_id):
                 "average_rating": round(avg, 2),
                 "approved": b.is_approved,
             })
-    rec = get_group_recommendation(history)
+    try:
+        rec = get_group_recommendation(history)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
     return jsonify({"recommendation": rec})
 
 

@@ -7,7 +7,10 @@ _client = None
 def _get_client():
     global _client
     if _client is None:
-        _client = anthropic.Anthropic(api_key=os.environ.get("ANTHROPIC_API_KEY"))
+        api_key = os.environ.get("ANTHROPIC_API_KEY")
+        if not api_key:
+            raise ValueError("ANTHROPIC_API_KEY environment variable is not set")
+        _client = anthropic.Anthropic(api_key=api_key)
     return _client
 
 
@@ -22,24 +25,31 @@ def get_group_recommendation(history: list[dict]) -> str:
         for h in history
     )
 
-    message = _get_client().messages.create(
-        model="claude-haiku-4-5-20251001",
-        max_tokens=400,
-        messages=[
-            {
-                "role": "user",
-                "content": (
-                    "You are a book recommendation assistant for a book club that uses the Gonder Scale "
-                    "(1–5, no decimals). A book is 'Book Club Approved' if its average rating is 3.67 or higher.\n\n"
-                    "Based on the following rated books:\n"
-                    f"{history_text}\n\n"
-                    "Recommend 2–3 books the group should read next, explaining briefly why each fits their taste. "
-                    "Be specific about titles and authors. Keep the response concise (under 150 words)."
-                ),
-            }
-        ],
-    )
-    return message.content[0].text
+    try:
+        message = _get_client().messages.create(
+            model="claude-haiku-4-5-20251001",
+            max_tokens=400,
+            messages=[
+                {
+                    "role": "user",
+                    "content": (
+                        "You are a book recommendation assistant for a book club that uses the Gonder Scale "
+                        "(1–5, no decimals). A book is 'Book Club Approved' if its average rating is 3.67 or higher.\n\n"
+                        "Based on the following rated books:\n"
+                        f"{history_text}\n\n"
+                        "Recommend 2–3 books the group should read next, explaining briefly why each fits their taste. "
+                        "Be specific about titles and authors. Keep the response concise (under 150 words)."
+                    ),
+                }
+            ],
+        )
+        return message.content[0].text
+    except ValueError as e:
+        return f"Recommendations unavailable: {e}"
+    except anthropic.APIError as e:
+        return f"Recommendations unavailable: API error ({e.status_code})"
+    except Exception as e:
+        return f"Recommendations unavailable: {e}"
 
 
 def get_member_recommendation(member_name: str, history: list[dict]) -> str:
@@ -52,21 +62,28 @@ def get_member_recommendation(member_name: str, history: list[dict]) -> str:
         for h in history
     )
 
-    message = _get_client().messages.create(
-        model="claude-haiku-4-5-20251001",
-        max_tokens=400,
-        messages=[
-            {
-                "role": "user",
-                "content": (
-                    f"You are a book recommendation assistant. {member_name} rates books on the Gonder Scale (1–5, no decimals).\n\n"
-                    f"Here are {member_name}'s ratings so far:\n"
-                    f"{history_text}\n\n"
-                    f"Based on their taste, recommend 2–3 books {member_name} would personally enjoy, "
-                    "explaining briefly why each suits their preferences. "
-                    "Be specific about titles and authors. Keep the response concise (under 150 words)."
-                ),
-            }
-        ],
-    )
-    return message.content[0].text
+    try:
+        message = _get_client().messages.create(
+            model="claude-haiku-4-5-20251001",
+            max_tokens=400,
+            messages=[
+                {
+                    "role": "user",
+                    "content": (
+                        f"You are a book recommendation assistant. {member_name} rates books on the Gonder Scale (1–5, no decimals).\n\n"
+                        f"Here are {member_name}'s ratings so far:\n"
+                        f"{history_text}\n\n"
+                        f"Based on their taste, recommend 2–3 books {member_name} would personally enjoy, "
+                        "explaining briefly why each suits their preferences. "
+                        "Be specific about titles and authors. Keep the response concise (under 150 words)."
+                    ),
+                }
+            ],
+        )
+        return message.content[0].text
+    except ValueError as e:
+        return f"Recommendations unavailable: {e}"
+    except anthropic.APIError as e:
+        return f"Recommendations unavailable: API error ({e.status_code})"
+    except Exception as e:
+        return f"Recommendations unavailable: {e}"
