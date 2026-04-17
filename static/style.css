@@ -1,0 +1,184 @@
+:root {
+  --primary: #2c5f2e;
+  --primary-light: #4a9e4e;
+  --approved-gold: #d4a017;
+  --approved-bg: #fdf8ec;
+  --approved-border: #e8c94a;
+  --bg: #f8f9fa;
+}
+
+body {
+  background-color: var(--bg);
+  font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+}
+
+/* Navbar */
+.navbar {
+  background-color: var(--primary);
+}
+
+.navbar-brand {
+  font-size: 1.25rem;
+  letter-spacing: 0.02em;
+}
+
+/* Cards */
+.card {
+  border: 1px solid #dee2e6;
+  border-radius: 12px;
+  box-shadow: 0 1px 4px rgba(0,0,0,.05);
+}
+
+.card-header {
+  background: #fff;
+  border-bottom: 1px solid #dee2e6;
+  border-radius: 12px 12px 0 0 !important;
+  padding: 0.75rem 1rem;
+}
+
+/* Book card */
+.book-card {
+  transition: transform .15s, box-shadow .15s;
+  color: inherit;
+}
+
+.book-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 14px rgba(0,0,0,.1);
+}
+
+.book-card.approved {
+  border: 2px solid var(--approved-border);
+  background-color: var(--approved-bg);
+}
+
+/* Approved badge */
+.approved-badge {
+  background-color: var(--approved-gold);
+  color: #1a1a1a;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+/* Stars */
+.stars {
+  display: inline-flex;
+  gap: 1px;
+}
+
+.star {
+  font-size: 1.1rem;
+  color: #ced4da;
+  line-height: 1;
+}
+
+.star.filled {
+  color: #f4a825;
+}
+
+/* Star picker (interactive) */
+.star-picker {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+}
+
+.star-btn {
+  font-size: 1.6rem;
+  color: #ced4da;
+  cursor: pointer;
+  transition: color .1s, transform .1s;
+  line-height: 1;
+  user-select: none;
+}
+
+.star-btn:hover,
+.star-btn.active {
+  color: #f4a825;
+}
+
+.star-btn:hover {
+  transform: scale(1.15);
+}
+
+/* Gonder score */
+.rating-display {
+  font-size: 1.4rem;
+  font-weight: 700;
+  color: var(--primary);
+}
+
+.gonder-score {
+  font-size: 3rem;
+  font-weight: 800;
+  color: var(--primary);
+  line-height: 1;
+}
+
+.gonder-score.approved-score {
+  color: var(--approved-gold);
+}
+
+/* Member avatar */
+.member-avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background-color: var(--primary);
+  color: white;
+  font-weight: 700;
+  font-size: 0.75rem;
+  margin-right: 6px;
+}
+
+.member-avatar-lg {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  background-color: var(--primary);
+  color: white;
+  font-weight: 800;
+  font-size: 2rem;
+  margin: 0 auto;
+}
+
+.member-link {
+  text-decoration: none;
+  color: inherit;
+  display: flex;
+  align-items: center;
+}
+
+.member-link:hover {
+  color: var(--primary);
+}
+
+/* Recommendation area */
+.rec-text {
+  white-space: pre-wrap;
+  font-size: 0.95rem;
+  line-height: 1.6;
+}
+
+.rec-spinner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #6c757d;
+}
+
+/* Empty state */
+.empty-state {
+  color: #6c757d;
+}
+
+/* Breadcrumb */
+.breadcrumb {
+  font-size: 0.9rem;
+}

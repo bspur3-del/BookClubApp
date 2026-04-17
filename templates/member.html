@@ -1,0 +1,112 @@
+{% extends "base.html" %}
+{% block title %}{{ member.name }} – Book Club Tracker{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb" class="mb-3">
+  <ol class="breadcrumb">
+    <li class="breadcrumb-item"><a href="{{ url_for('index') }}">Home</a></li>
+    <li class="breadcrumb-item active">{{ member.name }}</li>
+  </ol>
+</nav>
+
+<div class="row g-4">
+  <!-- Left: member stats & history -->
+  <div class="col-lg-7">
+    <div class="card mb-3">
+      <div class="card-body text-center py-4">
+        <div class="member-avatar-lg">{{ member.name[0].upper() }}</div>
+        <h3 class="mt-3 mb-1">{{ member.name }}</h3>
+        {% set avg = member.average_rating() %}
+        {% if avg is not none %}
+          <div class="gonder-score">{{ "%.2f"|format(avg) }}</div>
+          <p class="text-muted mb-0">Average Gonder Scale rating over {{ rated_books|length }} book{{ 's' if rated_books|length != 1 }}</p>
+        {% else %}
+          <p class="text-muted">No ratings yet.</p>
+        {% endif %}
+      </div>
+    </div>
+
+    {% if rated_books %}
+      <div class="card">
+        <div class="card-header fw-semibold">Rating History</div>
+        <ul class="list-group list-group-flush">
+          {% for book, rating in rated_books %}
+            <li class="list-group-item">
+              <div class="d-flex justify-content-between align-items-center">
+                <div>
+                  <a href="{{ url_for('book_detail', book_id=book.id) }}" class="fw-medium text-decoration-none">{{ book.title }}</a>
+                  <div class="small text-muted">by {{ book.author }} &middot; {{ book.display_period() }}</div>
+                </div>
+                <div class="text-end">
+                  <div class="stars">
+                    {% for i in range(1, 6) %}
+                      <span class="star {% if i <= rating.rating %}filled{% endif %}">★</span>
+                    {% endfor %}
+                  </div>
+                  <span class="fw-bold">{{ rating.rating }}/5</span>
+                </div>
+              </div>
+              {% set book_avg = book.average() %}
+              {% if book_avg is not none %}
+                <div class="small mt-1">
+                  {% if rating.rating > book_avg %}
+                    <span class="text-success">↑ Rated above group avg ({{ "%.2f"|format(book_avg) }})</span>
+                  {% elif rating.rating < book_avg %}
+                    <span class="text-danger">↓ Rated below group avg ({{ "%.2f"|format(book_avg) }})</span>
+                  {% else %}
+                    <span class="text-secondary">= Matched group avg ({{ "%.2f"|format(book_avg) }})</span>
+                  {% endif %}
+                </div>
+              {% endif %}
+            </li>
+          {% endfor %}
+        </ul>
+      </div>
+    {% else %}
+      <div class="empty-state text-center py-5">
+        <div class="display-4">🔖</div>
+        <p class="mt-3 text-muted">{{ member.name }} hasn't rated any books yet.</p>
+      </div>
+    {% endif %}
+  </div>
+
+  <!-- Right: personalised recommendation -->
+  <div class="col-lg-5">
+    <div class="card">
+      <div class="card-header fw-semibold d-flex justify-content-between align-items-center">
+        Personal Recommendation
+        {% if rated_books %}
+          <button class="btn btn-sm btn-outline-primary" onclick="loadMemberRec({{ member.id }})">
+            Get Recommendation
+          </button>
+        {% endif %}
+      </div>
+      <div class="card-body" id="memberRecBody">
+        <p class="text-muted mb-0">
+          {% if rated_books %}
+            Click "Get Recommendation" for personalised book picks based on {{ member.name }}'s Gonder Scale ratings.
+          {% else %}
+            Rate some books first to generate personalised recommendations.
+          {% endif %}
+        </p>
+      </div>
+    </div>
+
+    {% if rated_books %}
+    <div class="card mt-3">
+      <div class="card-header fw-semibold">Taste Profile</div>
+      <div class="card-body">
+        {% set high = rated_books | selectattr('1.rating', 'ge', 4) | list %}
+        {% set low  = rated_books | selectattr('1.rating', 'le', 2) | list %}
+        <p class="small mb-1"><strong>Loved (4–5):</strong>
+          {% if high %}{{ high | map(attribute='0.title') | join(', ') }}{% else %}none yet{% endif %}
+        </p>
+        <p class="small mb-0"><strong>Disliked (1–2):</strong>
+          {% if low %}{{ low | map(attribute='0.title') | join(', ') }}{% else %}none yet{% endif %}
+        </p>
+      </div>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,139 @@
+{% extends "base.html" %}
+{% block title %}{{ book.title }} – Book Club Tracker{% endblock %}
+
+{% block content %}
+{% set avg = book.average() %}
+{% set approved = book.is_approved() %}
+
+<nav aria-label="breadcrumb" class="mb-3">
+  <ol class="breadcrumb">
+    <li class="breadcrumb-item"><a href="{{ url_for('index') }}">Home</a></li>
+    <li class="breadcrumb-item active">{{ book.title }}</li>
+  </ol>
+</nav>
+
+<div class="row g-4">
+  <!-- Book info + ratings form -->
+  <div class="col-lg-7">
+    <div class="card {% if approved %}border-success{% endif %}">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <div>
+          <h4 class="mb-0">{{ book.title }}</h4>
+          <small class="text-muted">by {{ book.author }} &middot; {{ book.display_period() }}</small>
+        </div>
+        {% if approved %}
+          <span class="badge approved-badge fs-6">✓ Book Club Approved</span>
+        {% elif avg is not none %}
+          <span class="badge bg-secondary fs-6">Not Approved</span>
+        {% endif %}
+      </div>
+      <div class="card-body">
+        {% if avg is not none %}
+          <div class="text-center py-3">
+            <div class="gonder-score {% if approved %}approved-score{% endif %}">{{ "%.2f"|format(avg) }}</div>
+            <div class="text-muted">Gonder Scale average</div>
+            <div class="stars my-2">
+              {% for i in range(1, 6) %}
+                <span class="star {% if i <= avg|round(0, 'floor') %}filled{% endif %}">★</span>
+              {% endfor %}
+            </div>
+            <div class="small text-muted">
+              Threshold: {{ approval_threshold }} &nbsp;|&nbsp; {{ book.ratings|length }} rating{{ 's' if book.ratings|length != 1 }}
+            </div>
+          </div>
+        {% else %}
+          <p class="text-center text-muted py-3">No ratings recorded yet.</p>
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- Rate this book -->
+    <div class="card mt-3">
+      <div class="card-header fw-semibold">Member Ratings (Gonder Scale 1–5)</div>
+      <div class="card-body">
+        {% if members %}
+          <form method="POST" action="{{ url_for('rate_book', book_id=book.id) }}">
+            <div class="row g-3">
+              {% for member in members %}
+                <div class="col-sm-6">
+                  <label class="form-label fw-medium">{{ member.name }}</label>
+                  <div class="star-picker" data-member="{{ member.id }}">
+                    {% for star in range(1, 6) %}
+                      <span class="star-btn {% if existing.get(member.id) == star %}active{% endif %}"
+                            data-value="{{ star }}"
+                            title="{{ star }}">★</span>
+                    {% endfor %}
+                    <input type="hidden" name="rating_{{ member.id }}"
+                           value="{{ existing.get(member.id, '') }}"
+                           id="rating_{{ member.id }}">
+                  </div>
+                </div>
+              {% endfor %}
+            </div>
+            <div class="mt-3 d-flex gap-2">
+              <button type="submit" class="btn btn-primary">Save Ratings</button>
+              <button type="reset" class="btn btn-outline-secondary">Reset</button>
+            </div>
+          </form>
+        {% else %}
+          <p class="text-muted mb-0">Add members first to record ratings.</p>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <!-- Breakdown & recommendations -->
+  <div class="col-lg-5">
+    {% if book.ratings %}
+      <div class="card mb-3">
+        <div class="card-header fw-semibold">Individual Ratings</div>
+        <ul class="list-group list-group-flush">
+          {% for rating in book.ratings | sort(attribute='member.name') %}
+            <li class="list-group-item d-flex justify-content-between align-items-center">
+              <a href="{{ url_for('member_profile', member_id=rating.member.id) }}" class="member-link">
+                <span class="member-avatar">{{ rating.member.name[0].upper() }}</span>
+                {{ rating.member.name }}
+              </a>
+              <div class="d-flex align-items-center gap-2">
+                <div class="stars small">
+                  {% for i in range(1, 6) %}
+                    <span class="star {% if i <= rating.rating %}filled{% endif %}">★</span>
+                  {% endfor %}
+                </div>
+                <span class="fw-bold">{{ rating.rating }}/5</span>
+              </div>
+            </li>
+          {% endfor %}
+        </ul>
+      </div>
+    {% endif %}
+
+    <div class="card">
+      <div class="card-header fw-semibold d-flex justify-content-between align-items-center">
+        Group Recommendation
+        {% if book.ratings %}
+          <button class="btn btn-sm btn-outline-primary" id="getRecommendBtn" onclick="loadGroupRec({{ book.id }})">
+            Get Recommendation
+          </button>
+        {% endif %}
+      </div>
+      <div class="card-body" id="groupRecBody">
+        <p class="text-muted mb-0">
+          {% if book.ratings %}
+            Click "Get Recommendation" to see AI-powered book suggestions based on the group's rating history.
+          {% else %}
+            Record ratings first to generate a group recommendation.
+          {% endif %}
+        </p>
+      </div>
+    </div>
+
+    <div class="mt-3 text-end">
+      <form method="POST" action="{{ url_for('delete_book', book_id=book.id) }}"
+            onsubmit="return confirm('Delete this book and all its ratings?')">
+        <button type="submit" class="btn btn-outline-danger btn-sm">Delete Book</button>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

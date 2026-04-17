@@ -1,0 +1,189 @@
+{% extends "base.html" %}
+{% block title %}Book Club Tracker{% endblock %}
+
+{% block content %}
+<div class="row g-4">
+
+  <!-- Left column: Books -->
+  <div class="col-lg-8">
+    <div class="d-flex align-items-center justify-content-between mb-3">
+      <h2 class="mb-0">Monthly Books</h2>
+      <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#addBookModal">
+        + Add Book
+      </button>
+    </div>
+
+    {% if books %}
+      <div class="row g-3">
+        {% for book in books %}
+          {% set avg = book.average() %}
+          {% set approved = book.is_approved() %}
+          <div class="col-md-6">
+            <a href="{{ url_for('book_detail', book_id=book.id) }}" class="text-decoration-none">
+              <div class="card book-card h-100 {% if approved %}approved{% endif %}">
+                <div class="card-body">
+                  <div class="d-flex justify-content-between align-items-start">
+                    <div>
+                      <h5 class="card-title mb-1">{{ book.title }}</h5>
+                      <p class="card-subtitle text-muted small">by {{ book.author }}</p>
+                    </div>
+                    {% if approved %}
+                      <span class="badge approved-badge">✓ Approved</span>
+                    {% endif %}
+                  </div>
+                  <p class="card-text mt-2 small text-muted">{{ book.display_period() }}</p>
+                  {% if avg is not none %}
+                    <div class="mt-2">
+                      <span class="rating-display">{{ "%.2f"|format(avg) }}</span>
+                      <span class="text-muted small">/ 5 Gonder Scale</span>
+                      <div class="stars mt-1">
+                        {% for i in range(1, 6) %}
+                          <span class="star {% if i <= avg|round(0, 'floor') %}filled{% endif %}">★</span>
+                        {% endfor %}
+                      </div>
+                      <p class="small text-muted mt-1 mb-0">{{ book.ratings|length }} rating{{ 's' if book.ratings|length != 1 }}</p>
+                    </div>
+                  {% else %}
+                    <p class="small text-muted mt-2">No ratings yet</p>
+                  {% endif %}
+                </div>
+              </div>
+            </a>
+          </div>
+        {% endfor %}
+      </div>
+    {% else %}
+      <div class="empty-state text-center py-5">
+        <div class="display-1">📖</div>
+        <h4 class="mt-3">No books yet</h4>
+        <p class="text-muted">Add your first monthly book to get started.</p>
+      </div>
+    {% endif %}
+  </div>
+
+  <!-- Right column: Members -->
+  <div class="col-lg-4">
+    <div class="d-flex align-items-center justify-content-between mb-3">
+      <h2 class="mb-0">Members</h2>
+      <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#addMemberModal">
+        + Add Member
+      </button>
+    </div>
+
+    <div class="card">
+      <div class="card-body p-0">
+        {% if members %}
+          <ul class="list-group list-group-flush">
+            {% for member in members %}
+              {% set avg = member.average_rating() %}
+              <li class="list-group-item d-flex justify-content-between align-items-center">
+                <a href="{{ url_for('member_profile', member_id=member.id) }}" class="member-link">
+                  <span class="member-avatar">{{ member.name[0].upper() }}</span>
+                  {{ member.name }}
+                </a>
+                <div class="text-end">
+                  {% if avg is not none %}
+                    <span class="badge bg-secondary">{{ "%.1f"|format(avg) }} avg</span>
+                  {% else %}
+                    <span class="text-muted small">no ratings</span>
+                  {% endif %}
+                  <form method="POST" action="{{ url_for('delete_member', member_id=member.id) }}"
+                        class="d-inline" onsubmit="return confirm('Remove {{ member.name }}?')">
+                    <button type="submit" class="btn btn-link btn-sm text-danger p-0 ms-2">✕</button>
+                  </form>
+                </div>
+              </li>
+            {% endfor %}
+          </ul>
+        {% else %}
+          <div class="text-center py-4">
+            <p class="text-muted mb-0">No members yet.</p>
+          </div>
+        {% endif %}
+      </div>
+    </div>
+
+    {% if books %}
+    <div class="card mt-3">
+      <div class="card-header fw-semibold">Approval Threshold</div>
+      <div class="card-body">
+        <p class="mb-1 small">A book earns <strong>Book Club Approved</strong> status when its group average is <strong>{{ approval_threshold }}</strong> or higher on the Gonder Scale.</p>
+        <div class="progress" style="height: 8px;">
+          {% set approved_count = books | selectattr('is_approved') | list | length %}
+          {% set pct = (approved_count / books|length * 100)|int if books else 0 %}
+          <div class="progress-bar bg-success" style="width: {{ pct }}%"></div>
+        </div>
+        <p class="small text-muted mt-1 mb-0">{{ approved_count }} of {{ books|length }} book{{ 's' if books|length != 1 }} approved</p>
+      </div>
+    </div>
+    {% endif %}
+  </div>
+
+</div>
+
+<!-- Add Book Modal -->
+<div class="modal fade" id="addBookModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Add Monthly Book</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <form method="POST" action="{{ url_for('add_book') }}">
+        <div class="modal-body">
+          <div class="mb-3">
+            <label class="form-label">Title</label>
+            <input type="text" name="title" class="form-control" required>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Author</label>
+            <input type="text" name="author" class="form-control" required>
+          </div>
+          <div class="row">
+            <div class="col">
+              <label class="form-label">Month</label>
+              <select name="month" class="form-select" required>
+                {% for n, m in [(1,'January'),(2,'February'),(3,'March'),(4,'April'),(5,'May'),(6,'June'),(7,'July'),(8,'August'),(9,'September'),(10,'October'),(11,'November'),(12,'December')] %}
+                  <option value="{{ n }}">{{ m }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="col">
+              <label class="form-label">Year</label>
+              <input type="number" name="year" class="form-control" value="2026" min="2000" max="2100" required>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-primary">Add Book</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Add Member Modal -->
+<div class="modal fade" id="addMemberModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Add Member</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <form method="POST" action="{{ url_for('add_member') }}">
+        <div class="modal-body">
+          <div class="mb-3">
+            <label class="form-label">Name</label>
+            <input type="text" name="name" class="form-control" required>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-primary">Add Member</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}
