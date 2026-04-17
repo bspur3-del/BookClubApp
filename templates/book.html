@@ -90,23 +90,32 @@
 
   <!-- Breakdown & recommendations -->
   <div class="col-lg-5">
-    {% if book.ratings %}
+    {% if members %}
       <div class="card mb-3">
         <div class="card-header fw-semibold">Individual Ratings</div>
         <ul class="list-group list-group-flush">
-          {% for rating in book.ratings | sort(attribute='member.name') %}
-            <li class="list-group-item d-flex justify-content-between align-items-center">
-              <a href="{{ url_for('member_profile', member_id=rating.member.id) }}" class="member-link">
-                <span class="member-avatar">{{ rating.member.name[0].upper() }}</span>
-                {{ rating.member.name }}
-              </a>
-              <div class="d-flex align-items-center gap-2">
-                <div class="stars small">
-                  {% for i in range(1, 6) %}
-                    <span class="star {% if i <= rating.rating %}filled{% endif %}">★</span>
-                  {% endfor %}
-                </div>
-                <span class="fw-bold">{{ rating.rating }}/5</span>
+          {% for member in members | sort(attribute='name') %}
+            {% set current_rating = existing.get(member.id) %}
+            <li class="list-group-item">
+              <div class="d-flex justify-content-between align-items-center gap-2">
+                <a href="{{ url_for('member_profile', member_id=member.id) }}" class="member-link text-truncate">
+                  <span class="member-avatar">{{ member.name[0].upper() }}</span>
+                  {{ member.name }}
+                </a>
+                <form method="POST" action="{{ url_for('rate_book', book_id=book.id) }}" class="d-flex align-items-center gap-2 flex-shrink-0">
+                  <div class="star-picker" data-member="row_{{ member.id }}">
+                    {% for star in range(1, 6) %}
+                      <span class="star-btn {% if current_rating == star %}active{% endif %}"
+                            data-value="{{ star }}" title="{{ star }}">★</span>
+                    {% endfor %}
+                    <input type="hidden" name="rating_{{ member.id }}"
+                           value="{{ current_rating or '' }}"
+                           id="rating_row_{{ member.id }}">
+                  </div>
+                  <button type="submit" class="btn btn-sm {% if current_rating %}btn-outline-secondary{% else %}btn-primary{% endif %} py-0 px-2">
+                    {{ 'Update' if current_rating else 'Rate' }}
+                  </button>
+                </form>
               </div>
             </li>
           {% endfor %}
