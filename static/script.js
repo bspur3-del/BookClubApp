@@ -3,9 +3,12 @@ document.addEventListener("DOMContentLoaded", () => {
 
   const bookId = document.body.dataset.bookId;
   const memberId = document.body.dataset.memberId;
+  const clubPage = document.body.dataset.clubPage;
 
   if (bookId) loadGroupRec(bookId);
   if (memberId) loadMemberRec(memberId);
+  if (memberId) loadMemberPersonality(memberId);
+  if (clubPage) loadGroupPersonality();
 });
 
 function initStarPickers() {
@@ -62,6 +65,32 @@ async function loadMemberRec(memberId) {
     body.innerHTML = `<p class="rec-text mb-0">${escapeHtml(data.recommendation)}</p>`;
   } catch {
     body.innerHTML = `<p class="text-danger mb-0">Failed to load recommendation. Check your API key.</p>`;
+  }
+}
+
+async function loadMemberPersonality(memberId) {
+  const body = document.getElementById("memberPersonalityBody");
+  if (!body) return;
+
+  try {
+    const res = await fetch(`/members/${memberId}/personality`);
+    const data = await res.json();
+    body.innerHTML = `<p class="rec-text mb-0">${escapeHtml(data.personality)}</p>`;
+  } catch {
+    body.innerHTML = `<p class="text-danger mb-0">Failed to load personality. Check your API key.</p>`;
+  }
+}
+
+async function loadGroupPersonality() {
+  const body = document.getElementById("clubPersonalityBody");
+  if (!body) return;
+
+  try {
+    const res = await fetch(`/club/personality`);
+    const data = await res.json();
+    body.innerHTML = `<p class="rec-text mb-0">${escapeHtml(data.personality)}</p>`;
+  } catch {
+    body.innerHTML = `<p class="text-danger mb-0">Failed to load club personality. Check your API key.</p>`;
   }
 }
 

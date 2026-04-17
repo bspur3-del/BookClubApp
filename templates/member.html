@@ -104,8 +104,17 @@
     {% endif %}
   </div>
 
-  <!-- Right: personalised recommendation -->
+  <!-- Right: personality + recommendation -->
   <div class="col-lg-5">
+    {% if rated_books and has_api_key %}
+    <div class="card mb-3">
+      <div class="card-header fw-semibold">Reading Personality</div>
+      <div class="card-body" id="memberPersonalityBody">
+        <div class="rec-spinner"><div class="spinner-border spinner-border-sm"></div> Analyzing reading personality…</div>
+      </div>
+    </div>
+    {% endif %}
+
     <div class="card">
       <div class="card-header fw-semibold">Personal Recommendation</div>
       <div class="card-body" id="memberRecBody">
