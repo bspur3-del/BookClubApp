@@ -142,7 +142,7 @@ def book_recommend(book_id):
                 "title": b.title,
                 "author": b.author,
                 "average_rating": round(avg, 2),
-                "approved": b.is_approved(),
+                "approved": b.is_approved,
             })
     rec = get_group_recommendation(history)
     return jsonify({"recommendation": rec})

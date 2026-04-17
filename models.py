@@ -7,7 +7,7 @@ MONTH_NAMES = [
     "July", "August", "September", "October", "November", "December"
 ]
 
-APPROVAL_THRESHOLD = 3.67
+APPROVAL_THRESHOLD = 3.6
 
 
 class Member(db.Model):
@@ -39,6 +39,7 @@ class Book(db.Model):
             return None
         return sum(r.rating for r in self.ratings) / len(self.ratings)
 
+    @property
     def is_approved(self):
         avg = self.average()
         return avg is not None and avg >= APPROVAL_THRESHOLD
