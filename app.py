@@ -22,6 +22,9 @@ app.config["HAS_API_KEY"] = bool(os.environ.get("ANTHROPIC_API_KEY"))
 db.init_app(app)
 migrate = Migrate(app, db)
 
+with app.app_context():
+    db.create_all()
+
 @app.context_processor
 def inject_globals():
     logo_path = os.path.join(app.static_folder, "logo.png")
