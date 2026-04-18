@@ -1,5 +1,6 @@
 import os
 from flask import Flask, render_template, request, redirect, url_for, flash, jsonify
+from flask_migrate import Migrate
 from models import db, Member, Book, Rating, PastBook, APPROVAL_THRESHOLD
 from recommendations import (
     get_group_recommendation, get_member_recommendation,
@@ -10,12 +11,16 @@ from dotenv import load_dotenv
 load_dotenv()
 
 app = Flask(__name__)
-app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///bookclub.db"
+
+database_url = os.environ.get("DATABASE_URL", "sqlite:///bookclub.db")
+if database_url.startswith("postgres://"):
+    database_url = database_url.replace("postgres://", "postgresql://", 1)
+app.config["SQLALCHEMY_DATABASE_URI"] = database_url
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 app.secret_key = os.environ.get("SECRET_KEY", "dev-secret-key")
 app.config["HAS_API_KEY"] = bool(os.environ.get("ANTHROPIC_API_KEY"))
 db.init_app(app)
-
+migrate = Migrate(app, db)
 
 @app.context_processor
 def inject_globals():
@@ -24,11 +29,6 @@ def inject_globals():
         "has_api_key": app.config["HAS_API_KEY"],
         "logo_exists": os.path.exists(logo_path),
     }
-
-
-@app.before_request
-def create_tables():
-    db.create_all()
 
 
 # ── Members ────────────────────────────────────────────────────────────────────
