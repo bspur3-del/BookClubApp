@@ -23,6 +23,7 @@
           <div class="col-md-6">
             <a href="{{ url_for('book_detail', book_id=book.id) }}" class="text-decoration-none">
               <div class="card book-card h-100 {% if approved %}approved{% endif %}">
+                <div class="book-cover-area" data-cover-title="{{ book.title }}" data-cover-author="{{ book.author }}">📖</div>
                 <div class="card-body">
                   <div class="d-flex justify-content-between align-items-start">
                     <div>
@@ -125,7 +126,7 @@
 
     {% if has_rated_books and has_api_key %}
     <div class="card mt-3">
-      <div class="card-header fw-semibold">Club's Next Read</div>
+      <div class="card-header fw-semibold">Recommended Reading</div>
       <div class="card-body" id="clubRecBody">
         <div class="rec-spinner"><div class="spinner-border spinner-border-sm"></div> Finding your next book…</div>
       </div>
@@ -156,6 +157,7 @@
         {% set approved = book.is_approved %}
         <div class="col-md-4 col-lg-3">
           <div class="card book-card h-100 {% if approved %}approved{% endif %}">
+            <div class="book-cover-area" data-cover-title="{{ book.title }}" data-cover-author="{{ book.author }}">📖</div>
             <div class="card-body">
               <div class="d-flex justify-content-between align-items-start">
                 <div>

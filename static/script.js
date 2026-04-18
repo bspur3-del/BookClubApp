@@ -1,5 +1,6 @@
 document.addEventListener("DOMContentLoaded", () => {
   initStarPickers();
+  loadBookCovers();
 
   const bookId = document.body.dataset.bookId;
   const memberId = document.body.dataset.memberId;
@@ -42,14 +43,24 @@ function setActive(stars, value) {
 
 async function fetchBookCover(title, author) {
   try {
-    const q = encodeURIComponent(`${title} ${author}`);
-    const res = await fetch(`https://www.googleapis.com/books/v1/volumes?q=${q}&maxResults=1`);
+    const q = encodeURIComponent(`intitle:${title} inauthor:${author}`);
+    const res = await fetch(`https://www.googleapis.com/books/v1/volumes?q=${q}&maxResults=1&printType=books`);
     const data = await res.json();
     const links = data.items && data.items[0].volumeInfo.imageLinks;
-    return (links && (links.thumbnail || links.smallThumbnail)) || null;
+    let url = (links && (links.thumbnail || links.smallThumbnail)) || null;
+    if (url) url = url.replace(/^http:\/\//i, "https://");
+    return url;
   } catch {
     return null;
   }
+}
+
+async function loadBookCovers() {
+  const areas = document.querySelectorAll(".book-cover-area[data-cover-title]");
+  await Promise.all(Array.from(areas).map(async (area) => {
+    const url = await fetchBookCover(area.dataset.coverTitle, area.dataset.coverAuthor);
+    if (url) area.innerHTML = `<img src="${url}" alt="${escapeHtml(area.dataset.coverTitle)}" class="book-cover-img">`;
+  }));
 }
 
 function amazonUrl(title, author) {
@@ -80,9 +91,9 @@ async function renderRecCard(container, data) {
     </div>`;
 
   const coverUrl = await fetchBookCover(title, author);
-  if (coverUrl) {
-    const wrap = document.getElementById(coverId);
-    if (wrap) wrap.innerHTML = `<img src="${coverUrl}" alt="${escapeHtml(title)}" class="rec-cover">`;
+  const wrap = document.getElementById(coverId);
+  if (coverUrl && wrap) {
+    wrap.innerHTML = `<img src="${coverUrl}" alt="${escapeHtml(title)}" class="rec-cover">`;
   }
 }
 
