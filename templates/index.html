@@ -109,17 +109,19 @@
       </div>
     </div>
 
-    {% if books %}
+    {% if books or past_books %}
     <div class="card mt-3">
       <div class="card-header fw-semibold">Approval Threshold</div>
       <div class="card-body">
         <p class="mb-1 small">A book earns <strong>Book Club Approved</strong> status when its group average is <strong>{{ approval_threshold }}</strong> or higher on the Gonder Scale.</p>
         <div class="progress" style="height: 8px;">
-          {% set approved_count = books | selectattr('is_approved') | list | length %}
-          {% set pct = (approved_count / books|length * 100)|int if books else 0 %}
+          {% set rated_books = books | selectattr('ratings') | list %}
+          {% set approved_count = (rated_books | selectattr('is_approved') | list | length) + (past_books | selectattr('is_approved') | list | length) %}
+          {% set total_count = rated_books | length + past_books | length %}
+          {% set pct = (approved_count / total_count * 100)|int if total_count else 0 %}
           <div class="progress-bar bg-success" style="width: {{ pct }}%"></div>
         </div>
-        <p class="small text-muted mt-1 mb-0">{{ approved_count }} of {{ books|length }} book{{ 's' if books|length != 1 }} approved</p>
+        <p class="small text-muted mt-1 mb-0">{{ approved_count }} of {{ total_count }} book{{ 's' if total_count != 1 }} approved</p>
       </div>
     </div>
     {% endif %}
