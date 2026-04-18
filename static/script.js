@@ -42,24 +42,59 @@ function setActive(stars, value) {
 }
 
 async function fetchBookCover(title, author) {
+  // Try Google Books — simple combined query, check first few results
   try {
-    const q = encodeURIComponent(`intitle:${title} inauthor:${author}`);
-    const res = await fetch(`https://www.googleapis.com/books/v1/volumes?q=${q}&maxResults=1&printType=books`);
+    const q = encodeURIComponent(`${title} ${author}`);
+    const res = await fetch(
+      `https://www.googleapis.com/books/v1/volumes?q=${q}&maxResults=5&printType=books`
+    );
     const data = await res.json();
-    const links = data.items && data.items[0].volumeInfo.imageLinks;
-    let url = (links && (links.thumbnail || links.smallThumbnail)) || null;
-    if (url) url = url.replace(/^http:\/\//i, "https://");
-    return url;
-  } catch {
-    return null;
-  }
+    if (data.items) {
+      for (const item of data.items) {
+        const links = item.volumeInfo && item.volumeInfo.imageLinks;
+        if (links) {
+          let url = links.thumbnail || links.smallThumbnail;
+          if (url) {
+            return url
+              .replace(/^http:\/\//i, "https://")
+              .replace("&edge=curl", "");
+          }
+        }
+      }
+    }
+  } catch {}
+
+  // Fallback: Open Library Covers API
+  try {
+    const res = await fetch(
+      `https://openlibrary.org/search.json?title=${encodeURIComponent(title)}&author=${encodeURIComponent(author)}&limit=3&fields=cover_i`
+    );
+    const data = await res.json();
+    if (data.docs) {
+      for (const doc of data.docs) {
+        if (doc.cover_i) {
+          return `https://covers.openlibrary.org/b/id/${doc.cover_i}-M.jpg`;
+        }
+      }
+    }
+  } catch {}
+
+  return null;
 }
 
 async function loadBookCovers() {
   const areas = document.querySelectorAll(".book-cover-area[data-cover-title]");
   await Promise.all(Array.from(areas).map(async (area) => {
     const url = await fetchBookCover(area.dataset.coverTitle, area.dataset.coverAuthor);
-    if (url) area.innerHTML = `<img src="${url}" alt="${escapeHtml(area.dataset.coverTitle)}" class="book-cover-img">`;
+    if (!url) return;
+    const img = new Image();
+    img.onload = () => {
+      area.innerHTML = "";
+      area.appendChild(img);
+      img.className = "book-cover-img";
+      img.alt = area.dataset.coverTitle;
+    };
+    img.src = url;
   }));
 }
 
@@ -93,7 +128,14 @@ async function renderRecCard(container, data) {
   const coverUrl = await fetchBookCover(title, author);
   const wrap = document.getElementById(coverId);
   if (coverUrl && wrap) {
-    wrap.innerHTML = `<img src="${coverUrl}" alt="${escapeHtml(title)}" class="rec-cover">`;
+    const img = new Image();
+    img.onload = () => {
+      wrap.innerHTML = "";
+      img.className = "rec-cover";
+      img.alt = escapeHtml(title);
+      wrap.appendChild(img);
+    };
+    img.src = coverUrl;
   }
 }
 
