@@ -57,6 +57,30 @@ class Book(db.Model):
         return f"{self.month_name()} {self.year}"
 
 
+class PastBook(db.Model):
+    __tablename__ = "past_books"
+    id = db.Column(db.Integer, primary_key=True)
+    title = db.Column(db.String(200), nullable=False)
+    author = db.Column(db.String(200), nullable=False)
+    average_rating = db.Column(db.Float, nullable=False)
+    month = db.Column(db.Integer, nullable=True)
+    year = db.Column(db.Integer, nullable=True)
+
+    def month_name(self):
+        return MONTH_NAMES[self.month] if self.month else None
+
+    def display_period(self):
+        if self.month and self.year:
+            return f"{self.month_name()} {self.year}"
+        if self.year:
+            return str(self.year)
+        return "Date unknown"
+
+    @property
+    def is_approved(self):
+        return self.average_rating >= APPROVAL_THRESHOLD
+
+
 class Rating(db.Model):
     __tablename__ = "ratings"
     id = db.Column(db.Integer, primary_key=True)
