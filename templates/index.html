@@ -182,7 +182,11 @@
                 <p class="small text-muted mt-1 mb-0">Overall rating</p>
               </div>
             </div>
-            <div class="card-footer bg-transparent pt-0 pb-2 px-3 text-end">
+            <div class="card-footer bg-transparent pt-0 pb-2 px-3 d-flex justify-content-between align-items-center">
+              <button class="btn btn-outline-primary btn-sm py-0" style="font-size:0.75rem;"
+                      data-bs-toggle="modal" data-bs-target="#ratePastBookModal_{{ book.id }}">
+                Member Ratings
+              </button>
               <form method="POST" action="{{ url_for('delete_past_book', book_id=book.id) }}"
                     onsubmit="return confirm('Remove {{ book.title }}?')" class="d-inline">
                 <button type="submit" class="btn btn-link btn-sm text-danger p-0" style="font-size:0.78rem;">Remove</button>
@@ -192,6 +196,54 @@
         </div>
       {% endfor %}
     </div>
+
+    <!-- Per-past-book member rating modals -->
+    {% for book in past_books %}
+    {% set book_ratings = past_book_ratings.get(book.id, {}) %}
+    <div class="modal fade" id="ratePastBookModal_{{ book.id }}" tabindex="-1">
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title">Member Ratings — {{ book.title }}</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+          </div>
+          <form method="POST" action="{{ url_for('rate_past_book', book_id=book.id) }}">
+            <div class="modal-body">
+              <p class="small text-muted mb-3">
+                Overall club rating stays at <strong>{{ "%.2f"|format(book.average_rating) }}</strong>.
+                Individual ratings here inform each member's reading personality and recommendations.
+              </p>
+              {% if members %}
+                {% for member in members %}
+                  {% set cur = book_ratings.get(member.id) %}
+                  <div class="mb-3">
+                    <label class="form-label">{{ member.name }}</label>
+                    <div class="star-picker" data-member="{{ book.id }}_{{ member.id }}">
+                      {% for star in range(1, 6) %}
+                        <span class="star-btn {% if cur == star %}active{% endif %}"
+                              data-value="{{ star }}" title="{{ star }}">★</span>
+                      {% endfor %}
+                      <input type="hidden"
+                             name="rating_{{ member.id }}"
+                             id="rating_{{ book.id }}_{{ member.id }}"
+                             value="{{ cur or '' }}">
+                    </div>
+                  </div>
+                {% endfor %}
+              {% else %}
+                <p class="text-muted mb-0">Add members first to record ratings.</p>
+              {% endif %}
+            </div>
+            <div class="modal-footer">
+              <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+              {% if members %}<button type="submit" class="btn btn-primary">Save Ratings</button>{% endif %}
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+
   {% else %}
     <div class="empty-state text-center py-4">
       <p class="text-muted fst-italic mb-0">No past books yet. Add books you read before using this app — their ratings will inform the club personality and recommendations.</p>

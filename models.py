@@ -76,6 +76,7 @@ class PastBook(db.Model):
     average_rating = db.Column(db.Float, nullable=False)
     month = db.Column(db.Integer, nullable=True)
     year = db.Column(db.Integer, nullable=True)
+    member_ratings = db.relationship("PastBookRating", backref="past_book", lazy=True, cascade="all, delete-orphan")
 
     def month_name(self):
         return MONTH_NAMES[self.month] if self.month else None
@@ -90,3 +91,15 @@ class PastBook(db.Model):
     @property
     def is_approved(self):
         return self.average_rating >= APPROVAL_THRESHOLD
+
+
+class PastBookRating(db.Model):
+    __tablename__ = "past_book_ratings"
+    id = db.Column(db.Integer, primary_key=True)
+    member_id = db.Column(db.Integer, db.ForeignKey("members.id"), nullable=False)
+    past_book_id = db.Column(db.Integer, db.ForeignKey("past_books.id"), nullable=False)
+    rating = db.Column(db.Integer, nullable=False)
+
+    __table_args__ = (
+        db.UniqueConstraint("member_id", "past_book_id", name="unique_member_past_book"),
+    )

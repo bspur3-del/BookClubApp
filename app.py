@@ -1,7 +1,7 @@
 import os
 from flask import Flask, render_template, request, redirect, url_for, flash, jsonify
 from flask_migrate import Migrate
-from models import db, Member, Book, Rating, PastBook, APPROVAL_THRESHOLD
+from models import db, Member, Book, Rating, PastBook, PastBookRating, APPROVAL_THRESHOLD
 from recommendations import (
     get_group_recommendation, get_member_recommendation,
     get_member_personality, get_group_personality,
@@ -73,21 +73,30 @@ def member_profile(member_id):
     return render_template("member.html", member=member, rated_books=rated_books)
 
 
-@app.route("/members/<int:member_id>/recommend")
-def member_recommend(member_id):
-    member = Member.query.get_or_404(member_id)
-    rated_books = (
+def _member_history(member_id):
+    rated = (
         db.session.query(Book, Rating)
         .join(Rating, Rating.book_id == Book.id)
         .filter(Rating.member_id == member_id)
         .all()
     )
-    if not rated_books:
+    history = [{"title": b.title, "author": b.author, "rating": r.rating} for b, r in rated]
+    past_rated = (
+        db.session.query(PastBook, PastBookRating)
+        .join(PastBookRating, PastBookRating.past_book_id == PastBook.id)
+        .filter(PastBookRating.member_id == member_id)
+        .all()
+    )
+    history += [{"title": pb.title, "author": pb.author, "rating": pr.rating} for pb, pr in past_rated]
+    return history
+
+
+@app.route("/members/<int:member_id>/recommend")
+def member_recommend(member_id):
+    member = Member.query.get_or_404(member_id)
+    history = _member_history(member_id)
+    if not history:
         return jsonify({"error": "No ratings yet — start rating books to get personalised recommendations!"})
-    history = [
-        {"title": b.title, "author": b.author, "rating": r.rating}
-        for b, r in rated_books
-    ]
     try:
         rec = get_member_recommendation(member.name, history)
     except Exception as e:
@@ -98,18 +107,9 @@ def member_recommend(member_id):
 @app.route("/members/<int:member_id>/personality")
 def member_personality(member_id):
     member = Member.query.get_or_404(member_id)
-    rated_books = (
-        db.session.query(Book, Rating)
-        .join(Rating, Rating.book_id == Book.id)
-        .filter(Rating.member_id == member_id)
-        .all()
-    )
-    if not rated_books:
+    history = _member_history(member_id)
+    if not history:
         return jsonify({"personality": "Rate some books first to discover your reading personality!"})
-    history = [
-        {"title": b.title, "author": b.author, "rating": r.rating}
-        for b, r in rated_books
-    ]
     personality = get_member_personality(member.name, history)
     return jsonify({"personality": personality})
 
@@ -121,8 +121,13 @@ def index():
     books = Book.query.order_by(Book.year.desc(), Book.month.desc()).all()
     members = Member.query.order_by(Member.name).all()
     past_books = PastBook.query.order_by(PastBook.year.desc(), PastBook.month.desc()).all()
+    past_book_ratings = {
+        pb.id: {r.member_id: r.rating for r in pb.member_ratings}
+        for pb in past_books
+    }
     return render_template("index.html", books=books, members=members,
-                           past_books=past_books, approval_threshold=APPROVAL_THRESHOLD)
+                           past_books=past_books, past_book_ratings=past_book_ratings,
+                           approval_threshold=APPROVAL_THRESHOLD)
 
 
 @app.route("/past-books/add", methods=["POST"])
@@ -155,6 +160,31 @@ def delete_past_book(book_id):
     db.session.delete(book)
     db.session.commit()
     flash(f'"{title}" removed from past books.', "success")
+    return redirect(url_for("index"))
+
+
+@app.route("/past-books/<int:book_id>/rate", methods=["POST"])
+def rate_past_book(book_id):
+    book = PastBook.query.get_or_404(book_id)
+    for member in Member.query.all():
+        raw = request.form.get(f"rating_{member.id}")
+        if raw is None or raw == "":
+            continue
+        try:
+            value = int(raw)
+        except ValueError:
+            flash(f"Invalid rating for {member.name}.", "danger")
+            return redirect(url_for("index"))
+        if not (1 <= value <= 5):
+            flash(f"Rating for {member.name} must be between 1 and 5.", "danger")
+            return redirect(url_for("index"))
+        existing = PastBookRating.query.filter_by(member_id=member.id, past_book_id=book_id).first()
+        if existing:
+            existing.rating = value
+        else:
+            db.session.add(PastBookRating(member_id=member.id, past_book_id=book_id, rating=value))
+    db.session.commit()
+    flash(f'Ratings saved for "{book.title}".', "success")
     return redirect(url_for("index"))
 
 

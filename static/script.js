@@ -16,7 +16,10 @@ function initStarPickers() {
   document.querySelectorAll(".star-picker").forEach((picker) => {
     const stars = picker.querySelectorAll(".star-btn");
     const memberId = picker.dataset.member;
-    const input = document.getElementById(`rating_${memberId}`);
+    // Support both plain member ID and compound "bookId_memberId" forms
+    const input = document.getElementById(`rating_${memberId}`) ||
+                  picker.querySelector("input[type=hidden]");
+    if (!input) return;
 
     stars.forEach((star) => {
       star.addEventListener("mouseenter", () => highlight(stars, star.dataset.value));
