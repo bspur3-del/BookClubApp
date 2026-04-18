@@ -1,6 +1,7 @@
 import os
 from flask import Flask, render_template, request, redirect, url_for, flash, jsonify
-from models import db, Member, Book, Rating, APPROVAL_THRESHOLD
+from flask_migrate import Migrate
+from models import db, Member, Book, Rating, PastBook, APPROVAL_THRESHOLD
 from recommendations import (
     get_group_recommendation, get_member_recommendation,
     get_member_personality, get_group_personality,
@@ -10,12 +11,19 @@ from dotenv import load_dotenv
 load_dotenv()
 
 app = Flask(__name__)
-app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///bookclub.db"
+
+database_url = os.environ.get("DATABASE_URL", "sqlite:///bookclub.db")
+if database_url.startswith("postgres://"):
+    database_url = database_url.replace("postgres://", "postgresql://", 1)
+app.config["SQLALCHEMY_DATABASE_URI"] = database_url
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 app.secret_key = os.environ.get("SECRET_KEY", "dev-secret-key")
 app.config["HAS_API_KEY"] = bool(os.environ.get("ANTHROPIC_API_KEY"))
 db.init_app(app)
+migrate = Migrate(app, db)
 
+with app.app_context():
+    db.create_all()
 
 @app.context_processor
 def inject_globals():
@@ -24,11 +32,6 @@ def inject_globals():
         "has_api_key": app.config["HAS_API_KEY"],
         "logo_exists": os.path.exists(logo_path),
     }
-
-
-@app.before_request
-def create_tables():
-    db.create_all()
 
 
 # ── Members ────────────────────────────────────────────────────────────────────
@@ -80,7 +83,7 @@ def member_recommend(member_id):
         .all()
     )
     if not rated_books:
-        return jsonify({"recommendation": "No ratings yet — start rating books to get personalised recommendations!"})
+        return jsonify({"error": "No ratings yet — start rating books to get personalised recommendations!"})
     history = [
         {"title": b.title, "author": b.author, "rating": r.rating}
         for b, r in rated_books
@@ -89,7 +92,7 @@ def member_recommend(member_id):
         rec = get_member_recommendation(member.name, history)
     except Exception as e:
         return jsonify({"error": str(e)}), 500
-    return jsonify({"recommendation": rec})
+    return jsonify(rec)
 
 
 @app.route("/members/<int:member_id>/personality")
@@ -117,8 +120,42 @@ def member_personality(member_id):
 def index():
     books = Book.query.order_by(Book.year.desc(), Book.month.desc()).all()
     members = Member.query.order_by(Member.name).all()
+    past_books = PastBook.query.order_by(PastBook.year.desc(), PastBook.month.desc()).all()
     return render_template("index.html", books=books, members=members,
-                           approval_threshold=APPROVAL_THRESHOLD)
+                           past_books=past_books, approval_threshold=APPROVAL_THRESHOLD)
+
+
+@app.route("/past-books/add", methods=["POST"])
+def add_past_book():
+    title = request.form.get("title", "").strip()
+    author = request.form.get("author", "").strip()
+    average_rating = request.form.get("average_rating", type=float)
+    month = request.form.get("month", type=int) or None
+    year = request.form.get("year", type=int) or None
+    if not all([title, author, average_rating is not None]):
+        flash("Title, author, and rating are required.", "danger")
+        return redirect(url_for("index"))
+    if not (0.1 <= average_rating <= 5.0):
+        flash("Rating must be between 0.1 and 5.0.", "danger")
+        return redirect(url_for("index"))
+    if month and not (1 <= month <= 12):
+        flash("Month must be between 1 and 12.", "danger")
+        return redirect(url_for("index"))
+    db.session.add(PastBook(title=title, author=author, average_rating=average_rating,
+                            month=month, year=year))
+    db.session.commit()
+    flash(f'"{title}" added to past books.', "success")
+    return redirect(url_for("index"))
+
+
+@app.route("/past-books/<int:book_id>/delete", methods=["POST"])
+def delete_past_book(book_id):
+    book = PastBook.query.get_or_404(book_id)
+    title = book.title
+    db.session.delete(book)
+    db.session.commit()
+    flash(f'"{title}" removed from past books.', "success")
+    return redirect(url_for("index"))
 
 
 @app.route("/books/add", methods=["POST"])
@@ -151,17 +188,15 @@ def book_detail(book_id):
 
 @app.route("/club/personality")
 def club_personality():
-    all_books = Book.query.all()
     history = []
-    for b in all_books:
+    for b in Book.query.all():
         if b.ratings:
             avg = b.average()
-            history.append({
-                "title": b.title,
-                "author": b.author,
-                "average_rating": round(avg, 2),
-                "approved": b.is_approved,
-            })
+            history.append({"title": b.title, "author": b.author,
+                            "average_rating": round(avg, 2), "approved": b.is_approved})
+    for pb in PastBook.query.all():
+        history.append({"title": pb.title, "author": pb.author,
+                        "average_rating": round(pb.average_rating, 2), "approved": pb.is_approved})
     if not history:
         return jsonify({"personality": "Rate some books first to discover the club's reading personality!"})
     personality = get_group_personality(history)
@@ -205,23 +240,41 @@ def delete_book(book_id):
 def book_recommend(book_id):
     book = Book.query.get_or_404(book_id)
     if not book.ratings:
-        return jsonify({"recommendation": "No ratings yet for this book."})
-    all_books = Book.query.all()
+        return jsonify({"error": "No ratings yet for this book."})
     history = []
-    for b in all_books:
+    for b in Book.query.all():
         if b.ratings:
             avg = b.average()
-            history.append({
-                "title": b.title,
-                "author": b.author,
-                "average_rating": round(avg, 2),
-                "approved": b.is_approved,
-            })
+            history.append({"title": b.title, "author": b.author,
+                            "average_rating": round(avg, 2), "approved": b.is_approved})
+    for pb in PastBook.query.all():
+        history.append({"title": pb.title, "author": pb.author,
+                        "average_rating": round(pb.average_rating, 2), "approved": pb.is_approved})
     try:
         rec = get_group_recommendation(history)
     except Exception as e:
         return jsonify({"error": str(e)}), 500
-    return jsonify({"recommendation": rec})
+    return jsonify(rec)
+
+
+@app.route("/club/recommend")
+def club_recommend():
+    history = []
+    for b in Book.query.all():
+        if b.ratings:
+            avg = b.average()
+            history.append({"title": b.title, "author": b.author,
+                            "average_rating": round(avg, 2), "approved": b.is_approved})
+    for pb in PastBook.query.all():
+        history.append({"title": pb.title, "author": pb.author,
+                        "average_rating": round(pb.average_rating, 2), "approved": pb.is_approved})
+    if not history:
+        return jsonify({"error": "Rate some books first to get a recommendation."})
+    try:
+        rec = get_group_recommendation(history)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+    return jsonify(rec)
 
 
 # ── Ratings ────────────────────────────────────────────────────────────────────

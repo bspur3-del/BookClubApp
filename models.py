@@ -67,3 +67,25 @@ class Rating(db.Model):
     __table_args__ = (
         db.UniqueConstraint("member_id", "book_id", name="unique_member_book"),
     )
+
+
+class PastBook(db.Model):
+    __tablename__ = "past_books"
+    id = db.Column(db.Integer, primary_key=True)
+    title = db.Column(db.String(200), nullable=False)
+    author = db.Column(db.String(200), nullable=False)
+    average_rating = db.Column(db.Float, nullable=False)
+    month = db.Column(db.Integer, nullable=True)
+    year = db.Column(db.Integer, nullable=True)
+
+    @property
+    def is_approved(self):
+        return self.average_rating >= APPROVAL_THRESHOLD
+
+    def display_period(self):
+        parts = []
+        if self.month:
+            parts.append(MONTH_NAMES[self.month])
+        if self.year:
+            parts.append(str(self.year))
+        return " ".join(parts) if parts else "Unknown period"
