@@ -83,7 +83,7 @@ def member_recommend(member_id):
         .all()
     )
     if not rated_books:
-        return jsonify({"recommendation": "No ratings yet — start rating books to get personalised recommendations!"})
+        return jsonify({"error": "No ratings yet — start rating books to get personalised recommendations!"})
     history = [
         {"title": b.title, "author": b.author, "rating": r.rating}
         for b, r in rated_books
@@ -92,7 +92,7 @@ def member_recommend(member_id):
         rec = get_member_recommendation(member.name, history)
     except Exception as e:
         return jsonify({"error": str(e)}), 500
-    return jsonify({"recommendation": rec})
+    return jsonify(rec)
 
 
 @app.route("/members/<int:member_id>/personality")
@@ -240,7 +240,7 @@ def delete_book(book_id):
 def book_recommend(book_id):
     book = Book.query.get_or_404(book_id)
     if not book.ratings:
-        return jsonify({"recommendation": "No ratings yet for this book."})
+        return jsonify({"error": "No ratings yet for this book."})
     history = []
     for b in Book.query.all():
         if b.ratings:
@@ -254,7 +254,27 @@ def book_recommend(book_id):
         rec = get_group_recommendation(history)
     except Exception as e:
         return jsonify({"error": str(e)}), 500
-    return jsonify({"recommendation": rec})
+    return jsonify(rec)
+
+
+@app.route("/club/recommend")
+def club_recommend():
+    history = []
+    for b in Book.query.all():
+        if b.ratings:
+            avg = b.average()
+            history.append({"title": b.title, "author": b.author,
+                            "average_rating": round(avg, 2), "approved": b.is_approved})
+    for pb in PastBook.query.all():
+        history.append({"title": pb.title, "author": pb.author,
+                        "average_rating": round(pb.average_rating, 2), "approved": pb.is_approved})
+    if not history:
+        return jsonify({"error": "Rate some books first to get a recommendation."})
+    try:
+        rec = get_group_recommendation(history)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+    return jsonify(rec)
 
 
 # ── Ratings ────────────────────────────────────────────────────────────────────

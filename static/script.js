@@ -8,7 +8,7 @@ document.addEventListener("DOMContentLoaded", () => {
   if (bookId) loadGroupRec(bookId);
   if (memberId) loadMemberRec(memberId);
   if (memberId) loadMemberPersonality(memberId);
-  if (clubPage) loadGroupPersonality();
+  if (clubPage) { loadGroupPersonality(); loadClubRec(); }
 });
 
 function initStarPickers() {
@@ -40,15 +40,59 @@ function setActive(stars, value) {
   stars.forEach((s) => s.classList.toggle("active", parseInt(s.dataset.value) <= parseInt(value)));
 }
 
+async function fetchBookCover(title, author) {
+  try {
+    const q = encodeURIComponent(`${title} ${author}`);
+    const res = await fetch(`https://www.googleapis.com/books/v1/volumes?q=${q}&maxResults=1`);
+    const data = await res.json();
+    const links = data.items && data.items[0].volumeInfo.imageLinks;
+    return (links && (links.thumbnail || links.smallThumbnail)) || null;
+  } catch {
+    return null;
+  }
+}
+
+function amazonUrl(title, author) {
+  return `https://www.amazon.com/s?k=${encodeURIComponent(title + " " + author)}`;
+}
+
+async function renderRecCard(container, data) {
+  if (data.error) {
+    container.innerHTML = `<p class="text-muted fst-italic mb-0">${escapeHtml(data.error)}</p>`;
+    return;
+  }
+  const title = data.title || "";
+  const author = data.author || "";
+  const reason = data.reason || "";
+  const coverId = `rc-${Math.random().toString(36).slice(2)}`;
+
+  container.innerHTML = `
+    <div class="rec-card">
+      <div class="rec-cover-wrap" id="${coverId}">
+        <div class="rec-cover-placeholder">📖</div>
+      </div>
+      <div class="rec-card-body">
+        <div class="rec-card-title">${escapeHtml(title)}</div>
+        <div class="rec-card-author">by ${escapeHtml(author)}</div>
+        <p class="rec-card-reason">${escapeHtml(reason)}</p>
+        <a href="${amazonUrl(title, author)}" target="_blank" rel="noopener" class="btn-amazon">Buy on Amazon</a>
+      </div>
+    </div>`;
+
+  const coverUrl = await fetchBookCover(title, author);
+  if (coverUrl) {
+    const wrap = document.getElementById(coverId);
+    if (wrap) wrap.innerHTML = `<img src="${coverUrl}" alt="${escapeHtml(title)}" class="rec-cover">`;
+  }
+}
+
 async function loadGroupRec(bookId) {
   const body = document.getElementById("groupRecBody");
   if (!body) return;
   body.innerHTML = `<div class="rec-spinner"><div class="spinner-border spinner-border-sm"></div> Generating recommendation…</div>`;
-
   try {
     const res = await fetch(`/books/${bookId}/recommend`);
-    const data = await res.json();
-    body.innerHTML = `<p class="rec-text mb-0">${escapeHtml(data.recommendation)}</p>`;
+    await renderRecCard(body, await res.json());
   } catch {
     body.innerHTML = `<p class="text-danger mb-0">Failed to load recommendation. Check your API key.</p>`;
   }
@@ -58,11 +102,21 @@ async function loadMemberRec(memberId) {
   const body = document.getElementById("memberRecBody");
   if (!body) return;
   body.innerHTML = `<div class="rec-spinner"><div class="spinner-border spinner-border-sm"></div> Generating personalised recommendation…</div>`;
-
   try {
     const res = await fetch(`/members/${memberId}/recommend`);
-    const data = await res.json();
-    body.innerHTML = `<p class="rec-text mb-0">${escapeHtml(data.recommendation)}</p>`;
+    await renderRecCard(body, await res.json());
+  } catch {
+    body.innerHTML = `<p class="text-danger mb-0">Failed to load recommendation. Check your API key.</p>`;
+  }
+}
+
+async function loadClubRec() {
+  const body = document.getElementById("clubRecBody");
+  if (!body) return;
+  body.innerHTML = `<div class="rec-spinner"><div class="spinner-border spinner-border-sm"></div> Finding your next book…</div>`;
+  try {
+    const res = await fetch("/club/recommend");
+    await renderRecCard(body, await res.json());
   } catch {
     body.innerHTML = `<p class="text-danger mb-0">Failed to load recommendation. Check your API key.</p>`;
   }
