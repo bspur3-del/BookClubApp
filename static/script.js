@@ -46,10 +46,15 @@ function setActive(stars, value) {
 
 // ── Book cover fetching ────────────────────────────────────────────────
 
-// ISBN fallback for books the search APIs struggle to find
+// Fallback cover URLs for books the search APIs struggle to find.
+// Values can be a string (single URL) or array (tried in order until one loads).
 const HARDCODED_COVERS = {
-  "house of smoke":          "https://covers.openlibrary.org/b/isbn/9780593241028-M.jpg",
-  "guilty until innocent":   "https://covers.openlibrary.org/b/isbn/9781400344475-M.jpg",
+  "house of smoke":           "https://books.google.com/books/content?id=i2o4EQAAQBAJ&printsec=frontcover&img=1&zoom=1",
+  "guilty until innocent":   ["https://covers.openlibrary.org/b/isbn/9781400344611-M.jpg",
+                               "https://covers.openlibrary.org/b/isbn/9781400344475-M.jpg",
+                               "https://books.google.com/books/content?id=r-PR0AEACAAJ&printsec=frontcover&img=1&zoom=1"],
+  "if or when i call":        ["https://covers.openlibrary.org/b/isbn/9780998555461-M.jpg",
+                               "https://books.google.com/books/content?id=robYzQEACAAJ&printsec=frontcover&img=1&zoom=1"],
   "where the waves turn back":"https://covers.openlibrary.org/b/isbn/9781546003441-M.jpg",
   "once there were wolves":  "https://covers.openlibrary.org/b/isbn/9781250244147-M.jpg",
 };
@@ -111,15 +116,31 @@ async function fetchFromGoogleBooks(title, author) {
   return null;
 }
 
+function probeImage(url) {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => resolve(img.naturalWidth > 10 ? url : null);
+    img.onerror = () => resolve(null);
+    img.src = url;
+  });
+}
+
 async function fetchBookCover(title, author) {
   const key = `${title}|${author}`.toLowerCase().replace(/\s+/g, " ").trim();
 
-  // Hardcoded ISBN covers take priority over the cache (overrides any cached null)
+  // Hardcoded covers take priority over the cache (overrides any cached null).
+  // Values may be a single URL string or an array of URLs tried in order.
   const titleKey = title.toLowerCase().replace(/\s+/g, " ").trim();
   const hardcoded = HARDCODED_COVERS[titleKey];
   if (hardcoded) {
-    coverCacheSet(key, hardcoded);
-    return hardcoded;
+    const candidates = Array.isArray(hardcoded) ? hardcoded : [hardcoded];
+    for (const candidate of candidates) {
+      const loaded = await probeImage(candidate);
+      if (loaded) {
+        coverCacheSet(key, candidate);
+        return candidate;
+      }
+    }
   }
 
   const cached = coverCacheGet(key);
