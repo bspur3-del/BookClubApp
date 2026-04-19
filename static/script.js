@@ -46,14 +46,18 @@ function setActive(stars, value) {
 
 // ── Book cover fetching ────────────────────────────────────────────────
 
-const COVER_TTL = 14 * 24 * 60 * 60 * 1000; // 14 days
+const COVER_MISS_TTL = 7 * 24 * 60 * 60 * 1000; // retry "not found" after 7 days
 
 function coverCacheGet(key) {
   try {
     const raw = localStorage.getItem("bc_" + key);
     if (!raw) return undefined;
     const { url, ts } = JSON.parse(raw);
-    if (Date.now() - ts > COVER_TTL) { localStorage.removeItem("bc_" + key); return undefined; }
+    // Keep found covers forever; retry misses after 7 days
+    if (!url && Date.now() - ts > COVER_MISS_TTL) {
+      localStorage.removeItem("bc_" + key);
+      return undefined;
+    }
     return url; // null = confirmed no cover, string = URL
   } catch { return undefined; }
 }
