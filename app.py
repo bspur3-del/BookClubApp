@@ -23,7 +23,10 @@ db.init_app(app)
 migrate = Migrate(app, db)
 
 with app.app_context():
-    db.create_all()
+    try:
+        db.create_all()
+    except Exception as e:
+        print(f"[startup] db.create_all() warning: {e}", flush=True)
 
 @app.context_processor
 def inject_globals():
@@ -121,10 +124,19 @@ def index():
     books = Book.query.order_by(Book.year.desc(), Book.month.desc()).all()
     members = Member.query.order_by(Member.name).all()
     past_books = PastBook.query.order_by(PastBook.year.desc(), PastBook.month.desc()).all()
-    past_book_ratings = {
-        pb.id: {r.member_id: r.rating for r in pb.member_ratings}
-        for pb in past_books
-    }
+    try:
+        past_book_ratings = {
+            pb.id: {r.member_id: r.rating for r in pb.member_ratings}
+            for pb in past_books
+        }
+    except Exception as e:
+        print(f"[index] past_book_ratings query failed: {e}", flush=True)
+        past_book_ratings = {}
+        # Table may not exist yet — attempt to create it
+        try:
+            db.create_all()
+        except Exception:
+            pass
     return render_template("index.html", books=books, members=members,
                            past_books=past_books, past_book_ratings=past_book_ratings,
                            approval_threshold=APPROVAL_THRESHOLD)
