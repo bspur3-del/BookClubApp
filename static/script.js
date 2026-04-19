@@ -44,61 +44,97 @@ function setActive(stars, value) {
   stars.forEach((s) => s.classList.toggle("active", parseInt(s.dataset.value) <= parseInt(value)));
 }
 
-async function fetchBookCover(title, author) {
-  // Try Google Books — simple combined query, check first few results
+// ── Book cover fetching ────────────────────────────────────────────────
+
+const COVER_TTL = 14 * 24 * 60 * 60 * 1000; // 14 days
+
+function coverCacheGet(key) {
+  try {
+    const raw = localStorage.getItem("bc_" + key);
+    if (!raw) return undefined;
+    const { url, ts } = JSON.parse(raw);
+    if (Date.now() - ts > COVER_TTL) { localStorage.removeItem("bc_" + key); return undefined; }
+    return url; // null = confirmed no cover, string = URL
+  } catch { return undefined; }
+}
+
+function coverCacheSet(key, url) {
+  try { localStorage.setItem("bc_" + key, JSON.stringify({ url, ts: Date.now() })); } catch {}
+}
+
+async function fetchFromOpenLibrary(title, author) {
+  try {
+    const res = await fetch(
+      `https://openlibrary.org/search.json?title=${encodeURIComponent(title)}&author=${encodeURIComponent(author)}&limit=5&fields=cover_i`,
+      { signal: AbortSignal.timeout(5000) }
+    );
+    const data = await res.json();
+    if (data.docs) {
+      for (const doc of data.docs) {
+        if (doc.cover_i) return `https://covers.openlibrary.org/b/id/${doc.cover_i}-M.jpg`;
+      }
+    }
+  } catch {}
+  return null;
+}
+
+async function fetchFromGoogleBooks(title, author) {
   try {
     const q = encodeURIComponent(`${title} ${author}`);
     const res = await fetch(
-      `https://www.googleapis.com/books/v1/volumes?q=${q}&maxResults=5&printType=books`
+      `https://www.googleapis.com/books/v1/volumes?q=${q}&maxResults=5&printType=books`,
+      { signal: AbortSignal.timeout(5000) }
     );
     const data = await res.json();
     if (data.items) {
       for (const item of data.items) {
         const links = item.volumeInfo && item.volumeInfo.imageLinks;
         if (links) {
-          let url = links.thumbnail || links.smallThumbnail;
-          if (url) {
-            return url
-              .replace(/^http:\/\//i, "https://")
-              .replace("&edge=curl", "");
-          }
+          const raw = links.thumbnail || links.smallThumbnail;
+          if (raw) return raw.replace(/^http:\/\//i, "https://").replace("&edge=curl", "");
         }
       }
     }
   } catch {}
-
-  // Fallback: Open Library Covers API
-  try {
-    const res = await fetch(
-      `https://openlibrary.org/search.json?title=${encodeURIComponent(title)}&author=${encodeURIComponent(author)}&limit=3&fields=cover_i`
-    );
-    const data = await res.json();
-    if (data.docs) {
-      for (const doc of data.docs) {
-        if (doc.cover_i) {
-          return `https://covers.openlibrary.org/b/id/${doc.cover_i}-M.jpg`;
-        }
-      }
-    }
-  } catch {}
-
   return null;
 }
 
+async function fetchBookCover(title, author) {
+  const key = `${title}|${author}`.toLowerCase().replace(/\s+/g, " ").trim();
+  const cached = coverCacheGet(key);
+  if (cached !== undefined) return cached;
+
+  // Open Library first (more reliable, no rate limits), then Google Books
+  const url = (await fetchFromOpenLibrary(title, author)) ||
+              (await fetchFromGoogleBooks(title, author));
+
+  coverCacheSet(key, url);
+  return url;
+}
+
+function applycover(area, url, altText) {
+  const img = new Image();
+  img.onload = () => {
+    area.innerHTML = "";
+    img.className = area.classList.contains("rec-cover-wrap") ? "rec-cover" : "book-cover-img";
+    img.alt = altText || "";
+    area.appendChild(img);
+  };
+  // onerror: leave placeholder in place
+  img.src = url;
+}
+
 async function loadBookCovers() {
-  const areas = document.querySelectorAll(".book-cover-area[data-cover-title]");
-  await Promise.all(Array.from(areas).map(async (area) => {
-    const url = await fetchBookCover(area.dataset.coverTitle, area.dataset.coverAuthor);
-    if (!url) return;
-    const img = new Image();
-    img.onload = () => {
-      area.innerHTML = "";
-      area.appendChild(img);
-      img.className = "book-cover-img";
-      img.alt = area.dataset.coverTitle;
-    };
-    img.src = url;
-  }));
+  const areas = Array.from(document.querySelectorAll(".book-cover-area[data-cover-title]"));
+  // Process in batches of 3 to avoid overwhelming the APIs
+  for (let i = 0; i < areas.length; i += 3) {
+    await Promise.all(
+      areas.slice(i, i + 3).map(async (area) => {
+        const url = await fetchBookCover(area.dataset.coverTitle, area.dataset.coverAuthor);
+        if (url) applycover(area, url, area.dataset.coverTitle);
+      })
+    );
+  }
 }
 
 function amazonUrl(title, author) {
@@ -130,16 +166,7 @@ async function renderRecCard(container, data) {
 
   const coverUrl = await fetchBookCover(title, author);
   const wrap = document.getElementById(coverId);
-  if (coverUrl && wrap) {
-    const img = new Image();
-    img.onload = () => {
-      wrap.innerHTML = "";
-      img.className = "rec-cover";
-      img.alt = escapeHtml(title);
-      wrap.appendChild(img);
-    };
-    img.src = coverUrl;
-  }
+  if (coverUrl && wrap) applycover(wrap, coverUrl, title);
 }
 
 async function loadGroupRec(bookId) {
