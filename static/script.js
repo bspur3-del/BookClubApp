@@ -108,9 +108,12 @@ async function fetchBookCover(title, author) {
   const cached = coverCacheGet(key);
   if (cached !== undefined) return cached;
 
-  // Open Library first (more reliable, no rate limits), then Google Books
+  // 1. Open Library with title + author
+  // 2. Google Books with title + author
+  // 3. Open Library with title only (catches books where author spelling differs)
   const url = (await fetchFromOpenLibrary(title, author)) ||
-              (await fetchFromGoogleBooks(title, author));
+              (await fetchFromGoogleBooks(title, author)) ||
+              (await fetchFromOpenLibrary(title, ""));
 
   coverCacheSet(key, url);
   return url;

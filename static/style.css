@@ -91,6 +91,23 @@ h1, h2, h3, h4, h5, h6 {
   color: var(--parchment);
 }
 
+/* sub-text inside dark card headers needs to be readable */
+.card-header small,
+.card-header .text-muted {
+  font-family: 'IM Fell English', Georgia, serif;
+  font-size: 0.82rem;
+  font-weight: 400;
+  letter-spacing: 0;
+  text-transform: none;
+  color: rgba(237, 224, 196, 0.80) !important;
+}
+
+.card-header a {
+  color: var(--brass-light);
+  text-decoration: none;
+}
+.card-header a:hover { color: var(--parchment); }
+
 /* ── Book cover in card ───────────────────────────────────────────────── */
 
 .book-cover-area {
