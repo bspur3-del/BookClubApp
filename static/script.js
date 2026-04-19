@@ -46,6 +46,14 @@ function setActive(stars, value) {
 
 // ── Book cover fetching ────────────────────────────────────────────────
 
+// ISBN fallback for books the search APIs struggle to find
+const HARDCODED_COVERS = {
+  "house of smoke":          "https://covers.openlibrary.org/b/isbn/9780593241028-M.jpg",
+  "guilty until innocent":   "https://covers.openlibrary.org/b/isbn/9781400344475-M.jpg",
+  "where the waves turn back":"https://covers.openlibrary.org/b/isbn/9781546003441-M.jpg",
+  "once there were wolves":  "https://covers.openlibrary.org/b/isbn/9781250244147-M.jpg",
+};
+
 const COVER_MISS_TTL = 7 * 24 * 60 * 60 * 1000; // retry "not found" after 7 days
 
 function coverCacheGet(key) {
@@ -105,6 +113,15 @@ async function fetchFromGoogleBooks(title, author) {
 
 async function fetchBookCover(title, author) {
   const key = `${title}|${author}`.toLowerCase().replace(/\s+/g, " ").trim();
+
+  // Hardcoded ISBN covers take priority over the cache (overrides any cached null)
+  const titleKey = title.toLowerCase().replace(/\s+/g, " ").trim();
+  const hardcoded = HARDCODED_COVERS[titleKey];
+  if (hardcoded) {
+    coverCacheSet(key, hardcoded);
+    return hardcoded;
+  }
+
   const cached = coverCacheGet(key);
   if (cached !== undefined) return cached;
 
@@ -113,7 +130,7 @@ async function fetchBookCover(title, author) {
   // 3. Open Library with title only (catches books where author spelling differs)
   const url = (await fetchFromOpenLibrary(title, author)) ||
               (await fetchFromGoogleBooks(title, author)) ||
-              (await fetchFromOpenLibrary(title, ""));
+              (await fetchFromOpenLibrary(title, "")) || null;
 
   coverCacheSet(key, url);
   return url;
