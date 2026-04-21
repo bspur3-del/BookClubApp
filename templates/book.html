@@ -97,13 +97,13 @@
         <ul class="list-group list-group-flush">
           {% for member in members | sort(attribute='name') %}
             {% set current_rating = existing.get(member.id) %}
-            <li class="list-group-item">
-              <div class="d-flex justify-content-between align-items-center gap-2">
-                <a href="{{ url_for('member_profile', member_id=member.id) }}" class="member-link text-truncate">
-                  <span class="member-avatar">{{ member.name[0].upper() }}</span>
-                  {{ member.name }}
-                </a>
-                <form method="POST" action="{{ url_for('rate_book', book_id=book.id) }}" class="d-flex align-items-center gap-2 flex-shrink-0">
+            <li class="list-group-item py-2">
+              <a href="{{ url_for('member_profile', member_id=member.id) }}" class="member-link d-block mb-1">
+                <span class="member-avatar">{{ member.name[0].upper() }}</span>
+                {{ member.name }}
+              </a>
+              <div class="d-flex align-items-center gap-2">
+                <form method="POST" action="{{ url_for('rate_book', book_id=book.id) }}" class="d-flex align-items-center gap-2">
                   <div class="star-picker" data-member="row_{{ member.id }}">
                     {% for star in range(1, 6) %}
                       <span class="star-btn {% if current_rating == star %}active{% endif %}"
@@ -117,6 +117,12 @@
                     {{ 'Update' if current_rating else 'Rate' }}
                   </button>
                 </form>
+                {% if current_rating %}
+                <form method="POST" action="{{ url_for('delete_rating', book_id=book.id, member_id=member.id) }}"
+                      onsubmit="return confirm('Remove {{ member.name }}\'s rating?')">
+                  <button type="submit" class="btn btn-link btn-sm text-danger p-0" title="Remove rating">✕</button>
+                </form>
+                {% endif %}
               </div>
             </li>
           {% endfor %}

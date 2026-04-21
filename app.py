@@ -346,6 +346,15 @@ def rate_book(book_id):
     return redirect(url_for("book_detail", book_id=book_id))
 
 
+@app.route("/books/<int:book_id>/ratings/<int:member_id>/delete", methods=["POST"])
+def delete_rating(book_id, member_id):
+    rating = Rating.query.filter_by(book_id=book_id, member_id=member_id).first_or_404()
+    db.session.delete(rating)
+    db.session.commit()
+    flash("Rating removed.", "success")
+    return redirect(url_for("book_detail", book_id=book_id))
+
+
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port, debug=False)
