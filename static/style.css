@@ -177,7 +177,7 @@ h1, h2, h3, h4, h5, h6 {
 
 .stars { display: inline-flex; gap: 1px; }
 
-.star { font-size: 1.1rem; color: var(--border); line-height: 1; }
+.star { font-size: 1.1rem; color: #d0ccc4; line-height: 1; }
 .star.filled { color: var(--brass); }
 
 /* ── Star picker ──────────────────────────────────────────────────────── */
@@ -186,7 +186,7 @@ h1, h2, h3, h4, h5, h6 {
 
 .star-btn {
   font-size: 1.6rem;
-  color: var(--border);
+  color: #d0ccc4;
   cursor: pointer;
   transition: color .1s, transform .1s;
   line-height: 1;
