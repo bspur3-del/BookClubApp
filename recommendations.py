@@ -26,6 +26,17 @@ def _parse_book_json(text: str) -> dict:
     return json.loads(text)
 
 
+def _parse_book_list(text: str) -> list:
+    text = text.strip()
+    if text.startswith("```"):
+        parts = text.split("```")
+        text = parts[1]
+        if text.startswith("json"):
+            text = text[4:]
+        text = text.strip()
+    return json.loads(text)
+
+
 def get_group_recommendation(history: list[dict]) -> dict:
     """Returns a single book recommendation as a dict with title, author, reason."""
     if not history:
@@ -200,3 +211,53 @@ def get_group_personality(history: list[dict]) -> str:
         return f"Personality unavailable: API error ({e.status_code})"
     except Exception as e:
         return f"Personality unavailable: {e}"
+
+
+def get_nomination_suggestions(theme: str, history: list[dict]) -> list[dict]:
+    """Return 3 nomination suggestions for a given theme with predicted Gonder Scale ratings."""
+    history_section = ""
+    if history:
+        sorted_history = sorted(history, key=lambda x: x["average_rating"], reverse=True)
+        approved = [h for h in history if h["approved"]]
+        rejected = [h for h in history if not h["approved"]]
+        rows = "\n".join(
+            f'- "{h["title"]}" by {h["author"]}: {h["average_rating"]}/5'
+            f'{"  APPROVED" if h["approved"] else ""}'
+            for h in sorted_history
+        )
+        approved_titles = ", ".join(f'"{h["title"]}"' for h in approved) or "none yet"
+        rejected_titles = ", ".join(f'"{h["title"]}"' for h in rejected) or "none"
+        history_section = (
+            f"\nThis club's reading history (Gonder Scale, best to worst):\n{rows}\n\n"
+            f"Books they APPROVED (3.6+): {approved_titles}\n"
+            f"Books they did NOT approve: {rejected_titles}\n"
+        )
+
+    message = _get_client().messages.create(
+        model="claude-sonnet-4-6",
+        max_tokens=900,
+        messages=[{
+            "role": "user",
+            "content": (
+                "You are a literary expert helping a book club choose nominations for next month.\n\n"
+                f'Next month\'s theme: "{theme}"\n'
+                f"{history_section}\n"
+                f'Suggest exactly 3 real, published books that genuinely fit the theme "{theme}". '
+                "The theme must be central to each book — not incidental.\n\n"
+                + (
+                    "For each book, predict a Gonder Scale rating (1.0-5.0) based on specific, "
+                    "observable patterns from this club's approved vs rejected books. "
+                    "Reference what the approved books share and why this suggestion matches or diverges.\n\n"
+                    if history else
+                    "For each book, predict a Gonder Scale rating (1.0-5.0) based on general literary merit "
+                    "and how well it suits a thoughtful book club.\n\n"
+                ) +
+                "Vary your suggestions across styles or sub-genres within the theme.\n\n"
+                "Respond ONLY with a valid JSON array, no other text:\n"
+                '[{"title": "...", "author": "...", "predicted_rating": 4.1, '
+                '"reason": "Two sentences: first explain how the theme is central to this book, '
+                'then predict the Gonder Scale score with specific reasoning tied to this club\'s taste."}]'
+            ),
+        }],
+    )
+    return _parse_book_list(message.content[0].text)

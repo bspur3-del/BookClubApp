@@ -10,6 +10,17 @@ document.addEventListener("DOMContentLoaded", () => {
   if (memberId) loadMemberRec(memberId);
   if (memberId) loadMemberPersonality(memberId);
   if (clubPage) { loadGroupPersonality(); loadClubRec(); }
+
+  const nominationBtn = document.getElementById("nominationBtn");
+  if (nominationBtn) {
+    nominationBtn.addEventListener("click", () => {
+      const theme = document.getElementById("nominationTheme").value.trim();
+      if (theme) loadNominationSuggestions(theme);
+    });
+    document.getElementById("nominationTheme").addEventListener("keydown", (e) => {
+      if (e.key === "Enter") nominationBtn.click();
+    });
+  }
 });
 
 function initStarPickers() {
@@ -283,4 +294,65 @@ function escapeHtml(str) {
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;")
     .replace(/\n/g, "<br>");
+}
+
+// ── Nomination Suggester ───────────────────────────────────────────────
+
+async function loadNominationSuggestions(theme) {
+  const results = document.getElementById("nominationResults");
+  const btn = document.getElementById("nominationBtn");
+  if (!results) return;
+
+  results.innerHTML = `<div class="rec-spinner"><div class="spinner-border spinner-border-sm"></div> Generating suggestions for "${escapeHtml(theme)}"…</div>`;
+  btn.disabled = true;
+
+  try {
+    const res = await fetch(`/club/suggest-nominations?theme=${encodeURIComponent(theme)}`);
+    const data = await res.json();
+
+    if (data.error) {
+      results.innerHTML = `<p class="text-danger mb-0">${escapeHtml(data.error)}</p>`;
+      return;
+    }
+
+    results.innerHTML = `<div class="row g-3" id="nominationCards"></div>`;
+    const row = document.getElementById("nominationCards");
+
+    await Promise.all(data.map(async (item, i) => {
+      const col = document.createElement("div");
+      col.className = "col-md-4";
+      const coverId = `nc-${i}-${Math.random().toString(36).slice(2)}`;
+      const stars = Math.round(item.predicted_rating);
+      const starsHtml = Array.from({length: 5}, (_, i) =>
+        `<span class="star ${i < stars ? "filled" : ""}">★</span>`
+      ).join("");
+
+      col.innerHTML = `
+        <div class="card h-100">
+          <div class="rec-cover-wrap" id="${coverId}">
+            <div class="rec-cover-placeholder">📖</div>
+          </div>
+          <div class="card-body d-flex flex-column">
+            <div class="rec-card-title">${escapeHtml(item.title)}</div>
+            <div class="rec-card-author mb-2">by ${escapeHtml(item.author)}</div>
+            <div class="d-flex align-items-center gap-2 mb-2">
+              <div class="stars">${starsHtml}</div>
+              <span class="fw-bold" style="font-family:'Playfair Display',serif">${item.predicted_rating.toFixed(1)}</span>
+              <span class="gonder-label">predicted</span>
+            </div>
+            <p class="small text-muted mb-2 flex-grow-1">${escapeHtml(item.reason)}</p>
+            <a href="${amazonUrl(item.title, item.author)}" target="_blank" rel="noopener" class="btn-amazon mt-auto">Buy on Amazon</a>
+          </div>
+        </div>`;
+      row.appendChild(col);
+
+      const coverUrl = await fetchBookCover(item.title, item.author);
+      const wrap = document.getElementById(coverId);
+      if (coverUrl && wrap) applycover(wrap, coverUrl, item.title);
+    }));
+  } catch {
+    results.innerHTML = `<p class="text-danger mb-0">Failed to get suggestions. Check your API key.</p>`;
+  } finally {
+    btn.disabled = false;
+  }
 }

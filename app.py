@@ -5,6 +5,7 @@ from models import db, Member, Book, Rating, PastBook, PastBookRating, APPROVAL_
 from recommendations import (
     get_group_recommendation, get_member_recommendation,
     get_member_personality, get_group_personality,
+    get_nomination_suggestions,
 )
 from dotenv import load_dotenv
 
@@ -353,6 +354,27 @@ def delete_rating(book_id, member_id):
     db.session.commit()
     flash("Rating removed.", "success")
     return redirect(url_for("book_detail", book_id=book_id))
+
+
+@app.route("/club/suggest-nominations")
+def suggest_nominations():
+    theme = request.args.get("theme", "").strip()
+    if not theme:
+        return jsonify({"error": "Please enter a theme."}), 400
+    history = []
+    for b in Book.query.all():
+        if b.ratings:
+            avg = b.average()
+            history.append({"title": b.title, "author": b.author,
+                            "average_rating": round(avg, 2), "approved": b.is_approved})
+    for pb in PastBook.query.all():
+        history.append({"title": pb.title, "author": pb.author,
+                        "average_rating": round(pb.average_rating, 2), "approved": pb.is_approved})
+    try:
+        suggestions = get_nomination_suggestions(theme, history)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+    return jsonify(suggestions)
 
 
 if __name__ == "__main__":
