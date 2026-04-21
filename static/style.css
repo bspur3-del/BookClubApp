@@ -108,6 +108,10 @@ h1, h2, h3, h4, h5, h6 {
 }
 .card-header a:hover { color: var(--parchment); }
 
+@media (max-width: 576px) {
+  .card-header h4 { font-size: 1.1rem; }
+}
+
 /* ── Book cover in card ───────────────────────────────────────────────── */
 
 .book-cover-area {

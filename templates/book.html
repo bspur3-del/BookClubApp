@@ -18,7 +18,7 @@
   <div class="col-lg-7">
     <div class="card {% if approved %}border-success{% endif %}">
       <div class="book-cover-area book-cover-area-detail" data-cover-title="{{ book.title }}" data-cover-author="{{ book.author }}">📖</div>
-      <div class="card-header d-flex justify-content-between align-items-center">
+      <div class="card-header d-flex justify-content-between align-items-start flex-wrap gap-2">
         <div>
           <h4 class="mb-0">{{ book.title }}</h4>
           <small class="text-muted">
@@ -29,9 +29,9 @@
           </small>
         </div>
         {% if approved %}
-          <span class="badge approved-badge fs-6">✓ Book Club Approved</span>
+          <span class="badge approved-badge">✓ Book Club Approved</span>
         {% elif avg is not none %}
-          <span class="badge bg-secondary fs-6">Not Approved</span>
+          <span class="badge bg-secondary">Not Approved</span>
         {% endif %}
       </div>
       <div class="card-body">
