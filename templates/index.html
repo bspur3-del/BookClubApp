@@ -217,7 +217,15 @@
                 {% for member in members %}
                   {% set cur = book_ratings.get(member.id) %}
                   <div class="mb-3">
-                    <label class="form-label">{{ member.name }}</label>
+                    <div class="d-flex align-items-center justify-content-between mb-1">
+                      <label class="form-label mb-0">{{ member.name }}</label>
+                      {% if cur %}
+                      <form method="POST" action="{{ url_for('delete_past_book_rating', book_id=book.id, member_id=member.id) }}"
+                            onsubmit="return confirm('Remove {{ member.name }}\'s rating for {{ book.title }}?')">
+                        <button type="submit" class="btn btn-link btn-sm text-danger p-0" title="Remove rating">✕ Remove</button>
+                      </form>
+                      {% endif %}
+                    </div>
                     <div class="star-picker" data-member="{{ book.id }}_{{ member.id }}">
                       {% for star in range(1, 6) %}
                         <span class="star-btn {% if cur == star %}active{% endif %}"

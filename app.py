@@ -201,6 +201,15 @@ def rate_past_book(book_id):
     return redirect(url_for("index"))
 
 
+@app.route("/past-books/<int:book_id>/ratings/<int:member_id>/delete", methods=["POST"])
+def delete_past_book_rating(book_id, member_id):
+    rating = PastBookRating.query.filter_by(past_book_id=book_id, member_id=member_id).first_or_404()
+    db.session.delete(rating)
+    db.session.commit()
+    flash("Rating removed.", "success")
+    return redirect(url_for("index"))
+
+
 @app.route("/books/add", methods=["POST"])
 def add_book():
     title = request.form.get("title", "").strip()
