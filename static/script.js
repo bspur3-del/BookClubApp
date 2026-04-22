@@ -33,11 +33,23 @@ function initStarPickers() {
     if (!input) return;
 
     stars.forEach((star) => {
-      star.addEventListener("mouseenter", () => highlight(stars, star.dataset.value));
-      star.addEventListener("mouseleave", () => restoreActive(stars, input.value));
-      star.addEventListener("click", () => {
-        input.value = star.dataset.value;
-        setActive(stars, star.dataset.value);
+      // Hover effects only for real mouse pointers — not touch
+      star.addEventListener("pointerenter", (e) => {
+        if (e.pointerType === "mouse") highlight(stars, star.dataset.value);
+      });
+      star.addEventListener("pointerleave", (e) => {
+        if (e.pointerType === "mouse") restoreActive(stars, input.value);
+      });
+
+      // Only register a rating when the pointer didn't move (deliberate tap/click,
+      // not a scroll gesture passing over the element)
+      let downX, downY;
+      star.addEventListener("pointerdown", (e) => { downX = e.clientX; downY = e.clientY; });
+      star.addEventListener("pointerup", (e) => {
+        if (Math.abs(e.clientX - downX) < 8 && Math.abs(e.clientY - downY) < 8) {
+          input.value = star.dataset.value;
+          setActive(stars, star.dataset.value);
+        }
       });
     });
   });
