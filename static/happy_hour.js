@@ -20,6 +20,26 @@ const PLATFORMS = [
   { x: 1880, y: 210, w: 130, h: 14 },
 ];
 
+const CARL_EMOJI  = "🧑";
+const DONUT_EMOJI = "🐱";
+
+// Gold coins scattered across the world
+const COIN_XS = [130, 370, 680, 950, 1180, 1450, 1700, 1960, 2080];
+
+// System flavor text (à la Dungeon Crawler Carl's AI announcer)
+const SYSTEM_QUIPS = [
+  "The System: Achievement Unlocked: MONSTER SLAYER.",
+  "The System: 15 gold coins deposited to your account. Enjoy.",
+  "Donut: That's what happens when you challenge the princess's companion.",
+  "The System: Your patron has taken notice. They're mildly impressed.",
+  "Donut: Carl, I'm beginning to respect you. Only beginning.",
+  "The System: Witness the power of a man and his cat.",
+  "Donut: Excellent. You may pet me later as a reward.",
+  "The System: Floor clear progress updated. Keep moving, crawler.",
+  "The System: New record. The viewing audience approves.",
+  "Donut: I could have done that faster, for the record.",
+];
+
 // Monsters pulled from the Dungeon Crawler Carl universe
 const ENEMY_TYPES = [
   { name: "Bopca",             emoji: "🐸", maxHp: 16, atk: [3,6],  gold: [2,5]  },
@@ -74,6 +94,10 @@ function newState() {
     },
     donut: { hp: 45, maxHp: 45, cooldown: 0, buffed: false },
     cam: { x: 0 },
+    xp: 0, level: 1,
+    coins: COIN_XS.map(x => ({ x, y: GROUND_Y - 22, w: 18, h: 18, collected: false })),
+    shrine: { x: 1100, y: GROUND_Y - 40, w: 32, h: 40, used: false },
+    dramaTxt: { text: "", ttl: 0 },
     enemies: picks.map((t, i) => ({
       ...t, hp: t.maxHp,
       x: exs[i], y: GROUND_Y - 32,
@@ -203,6 +227,28 @@ function drawOverworld() {
     ctx.fillRect(ex, e.y - 9, e.w * pct, 5);
   }
 
+  // Coins
+  ctx.font = "16px serif"; ctx.textAlign = "center";
+  for (const c of GS.coins) {
+    if (c.collected) continue;
+    const ccx = c.x - cx;
+    if (ccx < -20 || ccx > W + 20) continue;
+    ctx.fillText("🪙", ccx + c.w / 2, c.y + c.h - 2);
+  }
+
+  // Healing shrine (Safe Room)
+  const sh = GS.shrine;
+  const shx = sh.x - cx;
+  if (shx > -40 && shx < W + 40) {
+    ctx.font = "28px serif"; ctx.textAlign = "center";
+    ctx.fillText(sh.used ? "⬛" : "⛩️", shx + sh.w / 2, sh.y + sh.h - 4);
+    if (!sh.used) {
+      ctx.fillStyle = "rgba(100,255,180,0.7)";
+      ctx.font = "9px 'Courier New', monospace";
+      ctx.fillText("SAFE ROOM", shx + sh.w / 2, sh.y - 4);
+    }
+  }
+
   // Carl
   const csx = carl.x - cx;
   ctx.save();
@@ -210,16 +256,16 @@ function drawOverworld() {
   if (!carl.facingRight) {
     ctx.translate(csx + carl.w / 2, 0);
     ctx.scale(-1, 1);
-    ctx.fillText("🧙", 0, carl.y + carl.h - 2);
+    ctx.fillText(CARL_EMOJI, 0, carl.y + carl.h - 2);
   } else {
-    ctx.fillText("🧙", csx + carl.w / 2, carl.y + carl.h - 2);
+    ctx.fillText(CARL_EMOJI, csx + carl.w / 2, carl.y + carl.h - 2);
   }
   ctx.restore();
 
   // Donut follows Carl
   ctx.font = "20px serif"; ctx.textAlign = "center";
   const donutOffX = carl.facingRight ? -20 : carl.w + 4;
-  ctx.fillText("🐱", csx + donutOffX + 10, carl.y + carl.h - 2);
+  ctx.fillText(DONUT_EMOJI, csx + donutOffX + 10, carl.y + carl.h - 2);
 
   // HUD strip
   ctx.fillStyle = "rgba(0,0,0,0.6)";
@@ -227,27 +273,42 @@ function drawOverworld() {
   ctx.fillStyle = "#c8a030";
   ctx.font = "11px 'Courier New', monospace";
   ctx.textAlign = "left";
-  ctx.fillText(`Carl ${Math.max(0, carl.hp)}/${carl.maxHp} HP`, 6, 17);
-  ctx.fillText(`Donut ${Math.max(0, GS.donut.hp)}/${GS.donut.maxHp} HP`, 160, 17);
+  ctx.fillText(`Carl ${Math.max(0, carl.hp)}/${carl.maxHp} HP  Lv${GS.level}`, 6, 17);
+  ctx.fillText(`Donut ${Math.max(0, GS.donut.hp)}/${GS.donut.maxHp} HP`, 190, 17);
   ctx.textAlign = "right";
   ctx.fillText(`💰 ${GS.gold}`, W - 6, 17);
   const rem = enemies.filter(e => !e.defeated).length;
   ctx.textAlign = "center";
   if (!boss.unlocked) {
     ctx.fillStyle = "#a090b0";
-    ctx.fillText(`Enemies: ${rem}/3 remaining`, W / 2, 17);
+    ctx.fillText(`Enemies: ${rem}/3`, W / 2, 17);
   } else if (!boss.defeated) {
     ctx.fillStyle = "#ff5050";
     ctx.fillText("⚠ BOSS UNLOCKED →", W / 2, 17);
   }
 
-  // Hud message
+  // HUD message (warnings)
   if (hudMsg.ttl > 0) {
     hudMsg.ttl--;
     ctx.fillStyle = "rgba(200,50,50,0.92)";
     ctx.font = "bold 13px 'Courier New', monospace";
     ctx.textAlign = "center";
     ctx.fillText(hudMsg.text, W / 2, 54);
+  }
+
+  // Drama text overlay (level up, crits, etc.)
+  if (GS.dramaTxt.ttl > 0) {
+    const alpha = Math.min(1, GS.dramaTxt.ttl / 25);
+    ctx.globalAlpha = alpha;
+    ctx.font = "bold 20px 'Courier New', monospace";
+    ctx.textAlign = "center";
+    ctx.fillStyle = "#ffe040";
+    ctx.strokeStyle = "#000";
+    ctx.lineWidth = 3;
+    ctx.strokeText(GS.dramaTxt.text, W / 2, H / 2 - 20);
+    ctx.fillText(GS.dramaTxt.text, W / 2, H / 2 - 20);
+    ctx.globalAlpha = 1;
+    GS.dramaTxt.ttl--;
   }
 }
 
@@ -262,6 +323,27 @@ function overworldTick() {
 
 function checkEncounters() {
   if (GS.battle) return;
+
+  // Collect coins
+  for (const c of GS.coins) {
+    if (!c.collected && aabb(GS.carl, c)) {
+      c.collected = true;
+      const g = rand(2, 5);
+      GS.gold += g;
+      hudMsg = { text: `+${g} 💰`, ttl: 70 };
+    }
+  }
+
+  // Healing shrine (Safe Room)
+  const sh = GS.shrine;
+  if (!sh.used && aabb(GS.carl, sh)) {
+    sh.used = true;
+    const heal = 25;
+    GS.carl.hp = Math.min(GS.carl.maxHp, GS.carl.hp + heal);
+    GS.donut.hp = Math.min(GS.donut.maxHp, GS.donut.hp + 15);
+    GS.dramaTxt = { text: `SAFE ROOM: Carl +${heal} HP, Donut +15 HP`, ttl: 120 };
+  }
+
   if (battleGraceTtl > 0) { battleGraceTtl--; return; }
   const carl = GS.carl;
   for (const e of GS.enemies) {
@@ -282,7 +364,7 @@ function checkEncounters() {
 function triggerBattle(enemy, isBoss) {
   // Prevent re-triggering while transitioning
   if (GS.battle) return;
-  GS.battle = { enemy, isBoss, busy: false, playerTurn: false, over: false, defending: false };
+  GS.battle = { enemy, isBoss, busy: false, playerTurn: false, over: false, defending: false, enemyStunned: false };
 
   // Push Carl away so he doesn't re-trigger on return
   GS.carl.x += GS.carl.facingRight ? -60 : 60;
@@ -348,7 +430,7 @@ function syncMoveButtons() {
   const dnt = document.getElementById("b-btn-donut");
   if (dnt) {
     dnt.disabled    = GS.donut.cooldown > 0 || GS.donut.hp <= 0;
-    dnt.textContent = GS.donut.cooldown > 0 ? `🐱 Cat Strike (${GS.donut.cooldown})` : "🐱 Cat Strike";
+    dnt.textContent = GS.donut.cooldown > 0 ? `🐾 Paw of Justice (${GS.donut.cooldown})` : "🐾 Paw of Justice";
   }
   const itm = document.getElementById("b-btn-item");
   if (itm) itm.disabled = GS.inventory.length === 0;
@@ -357,7 +439,7 @@ function syncMoveButtons() {
 function resetMovesHTML() {
   document.getElementById("b-moves").innerHTML = `
     <button class="b-move-btn" id="b-btn-attack" onclick="battleAction('attack')">⚔️ Attack</button>
-    <button class="b-move-btn" id="b-btn-donut"  onclick="battleAction('donut')">🐱 Cat Strike</button>
+    <button class="b-move-btn" id="b-btn-donut"  onclick="battleAction('donut')">🐾 Paw of Justice</button>
     <button class="b-move-btn" id="b-btn-item"   onclick="battleAction('item')">🎒 Items</button>
     <button class="b-move-btn" id="b-btn-run"    onclick="battleAction('run')">🏃 Run</button>`;
 }
@@ -401,17 +483,31 @@ async function battleAction(type) {
   }
 
   if (type === "attack") {
-    const dmgC = rand(...GS.carl.atkBase) + (GS.carl.atkBonus || 0);
+    const isCrit = Math.random() < 0.15;
+    const isStun = !isCrit && Math.random() < 0.12;
+    let dmgC = rand(...GS.carl.atkBase) + (GS.carl.atkBonus || 0);
+    if (isCrit) dmgC = Math.floor(dmgC * 1.85);
     bt.enemy.hp -= dmgC;
-    setBattleText(`Carl attacks for ${dmgC} damage!`);
+    if (isCrit) {
+      setBattleText(`Carl attacks for ${dmgC}! ★ CRITICAL HIT! ★`);
+    } else if (isStun) {
+      bt.enemyStunned = true;
+      setBattleText(`Carl attacks for ${dmgC}! ${bt.enemy.name} is stunned!`);
+    } else {
+      setBattleText(`Carl attacks for ${dmgC} damage!`);
+    }
     shakeEl("b-enemy-wrap");
 
   } else if (type === "donut") {
+    const isCrit = Math.random() < 0.20;
     let dmg = rand(14, 22);
-    if (GS.donut.buffed) { dmg *= 2; GS.donut.buffed = false; }
+    if (GS.donut.buffed) { dmg = Math.floor(dmg * 2); GS.donut.buffed = false; }
+    if (isCrit) dmg = Math.floor(dmg * 1.85);
     bt.enemy.hp      -= dmg;
     GS.donut.cooldown = 3;
-    setBattleText(`Donut pounces for ${dmg} damage!${dmg >= 28 ? " It's super effective!" : ""}`);
+    const suffix = isCrit ? " ★ CRITICAL! Princess Donut is displeased! ★" :
+                   dmg >= 28 ? " The System: IMPRESSIVE." : "";
+    setBattleText(`Princess Donut's Paw of Justice: ${dmg} damage!${suffix}`);
     shakeEl("b-enemy-wrap");
 
   } else if (type === "item") {
@@ -433,6 +529,18 @@ async function enemyTurn() {
   const bt = GS.battle;
   const e  = bt.enemy;
   let dmg;
+
+  // Stunned — enemy misses this turn
+  if (bt.enemyStunned) {
+    bt.enemyStunned = false;
+    setBattleText(`${e.name} is stunned and loses their turn!`);
+    if (GS.donut.cooldown > 0) GS.donut.cooldown--;
+    await delay(1200);
+    setBattleText("What will Carl do?");
+    bt.busy = false;
+    showBattleMoves();
+    return;
+  }
 
   if (e.special && Math.random() < e.special.chance) {
     dmg = rand(...e.special.atk);
@@ -534,13 +642,42 @@ async function onBattleWin() {
   bt.over           = true;
   updateBattleHpBars();
   setBattleText(`${bt.enemy.name} fainted! +${goldEarned} 💰`);
-  await delay(2000);
+  await delay(1400);
+
+  // XP and leveling
+  const xpGain = bt.isBoss ? 35 : 12;
+  GS.xp += xpGain;
+  let leveledUp = false;
+  if (GS.level === 1 && GS.xp >= 12) { GS.level = 2; leveledUp = true; }
+  if (GS.level === 2 && GS.xp >= 35) { GS.level = 3; leveledUp = true; }
+  if (leveledUp) {
+    GS.carl.maxHp += 12;
+    GS.carl.hp     = Math.min(GS.carl.hp + 12, GS.carl.maxHp);
+    GS.carl.atkBase = [GS.carl.atkBase[0] + 2, GS.carl.atkBase[1] + 2];
+    setBattleText(`★ LEVEL UP! Carl is now Level ${GS.level}! Max HP +12, ATK +2 ★`);
+    GS.dramaTxt = { text: `LEVEL ${GS.level}!`, ttl: 150 };
+    await delay(1800);
+  }
+
+  // Random item drop
+  if (!bt.isBoss && Math.random() < 0.35 && GS.inventory.length < 3) {
+    const drop = Math.random() < 0.5 ? "hpotion" : "dirtyshirl";
+    const dropItem = SHOP_DATA.find(s => s.id === drop);
+    GS.inventory.push(drop);
+    setBattleText(`${bt.enemy.name} dropped a ${dropItem.emoji} ${dropItem.name}!`);
+    await delay(1400);
+  }
+
+  // System quip
+  const quip = SYSTEM_QUIPS[Math.floor(Math.random() * SYSTEM_QUIPS.length)];
+  setBattleText(quip);
+  await delay(1600);
 
   if (bt.isBoss) {
     const boss = bt.enemy;
     document.getElementById("win-msg").textContent =
       `Carl and Donut defeated ${boss.name}${boss.book ? ` (from "${boss.book}")` : ""}! ` +
-      `Final gold: 💰 ${GS.gold}`;
+      `Level: ${GS.level} · Final gold: 💰 ${GS.gold}`;
     GS.battle = null;
     showScreen("screen-win");
     return;
