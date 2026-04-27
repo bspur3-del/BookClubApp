@@ -20,20 +20,21 @@ const PLATFORMS = [
   { x: 1880, y: 210, w: 130, h: 14 },
 ];
 
+// Monsters pulled from the Dungeon Crawler Carl universe
 const ENEMY_TYPES = [
-  { name: "Sloshed Goblin", emoji: "👺", maxHp: 32, atk: [7,12],  gold: [3,8]  },
-  { name: "Drunk Skeleton", emoji: "💀", maxHp: 38, atk: [9,14],  gold: [4,9]  },
-  { name: "Barfly Imp",     emoji: "😈", maxHp: 28, atk: [11,17], gold: [5,10] },
-  { name: "Stumbling Ogre", emoji: "👹", maxHp: 55, atk: [10,16], gold: [6,12] },
-  { name: "Hammered Witch", emoji: "🧙", maxHp: 30, atk: [13,19], gold: [5,11] },
-  { name: "Wobbly Troll",   emoji: "🧌", maxHp: 48, atk: [11,15], gold: [5,10] },
+  { name: "Bopca",             emoji: "🐸", maxHp: 16, atk: [3,6],  gold: [2,5]  },
+  { name: "Hob",               emoji: "👺", maxHp: 20, atk: [4,7],  gold: [2,5]  },
+  { name: "Dire Rat",          emoji: "🐀", maxHp: 18, atk: [4,7],  gold: [2,5]  },
+  { name: "Skeleton Warrior",  emoji: "💀", maxHp: 22, atk: [5,8],  gold: [3,6]  },
+  { name: "Box Troll",         emoji: "📦", maxHp: 28, atk: [5,9],  gold: [3,7]  },
+  { name: "Crawlersworn",      emoji: "🤖", maxHp: 24, atk: [5,9],  gold: [3,7]  },
 ];
 
 const DEFAULT_BOSS = {
-  name: "The Dungeon Bartender", emoji: "🍸",
+  name: "The Skull Empress", emoji: "💀",
   book: null, flavor: null,
-  maxHp: 110, atk: [16,24], gold: [25,35],
-  special: { name: "Last Call", atk: [28,38], chance: 0.28 },
+  maxHp: 65, atk: [9,15], gold: [20,30],
+  special: { name: "Death Knell", atk: [14,20], chance: 0.20 },
 };
 
 const SHOP_DATA = [
@@ -50,6 +51,7 @@ let GS = {};
 let canvas, ctx, animId;
 let loadedBossData = null;
 let hudMsg = { text: "", ttl: 0 };
+let battleGraceTtl = 0;  // frames of post-battle immunity
 const KEYS = {};
 
 document.addEventListener("keydown", e => {
@@ -260,6 +262,7 @@ function overworldTick() {
 
 function checkEncounters() {
   if (GS.battle) return;
+  if (battleGraceTtl > 0) { battleGraceTtl--; return; }
   const carl = GS.carl;
   for (const e of GS.enemies) {
     if (!e.defeated && aabb(carl, e)) { triggerBattle(e, false); return; }
@@ -267,7 +270,6 @@ function checkEncounters() {
   const b = GS.boss;
   if (!b.defeated && b.unlocked && aabb(carl, b)) { triggerBattle(b, true); return; }
   if (!b.unlocked && !b.defeated && aabb(carl, b)) {
-    // Locked door — push Carl back
     GS.carl.x += GS.carl.facingRight ? -50 : 50;
     GS.carl.x  = clamp(GS.carl.x, 0, WORLD_W - GS.carl.w);
     hudMsg = { text: "Defeat all 3 enemies first!", ttl: 130 };
@@ -550,6 +552,7 @@ async function onBattleWin() {
 
 function endBattle() {
   GS.battle = null;
+  battleGraceTtl = 100;
   showScreen("screen-overworld");
 }
 
@@ -585,6 +588,7 @@ function buyItem(id) {
 }
 
 function leaveShop() {
+  battleGraceTtl = 100;
   showScreen("screen-overworld");
 }
 
@@ -628,10 +632,10 @@ window.addEventListener("DOMContentLoaded", () => {
           emoji:   data.emoji  || "🦹",
           book:    data.book   || null,
           flavor:  data.flavor || null,
-          maxHp:   data.hp     || 110,
-          atk:     [data.atk_min || 16, data.atk_max || 26],
-          gold:    [25, 35],
-          special: { name: "Final Chapter", atk: [26, 36], chance: 0.28 },
+          maxHp:   65,
+          atk:     [9, 15],
+          gold:    [20, 30],
+          special: { name: "Final Chapter", atk: [14, 20], chance: 0.20 },
         };
         // Update start button label to hint at the boss
         const btn = document.getElementById("start-btn");
