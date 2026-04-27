@@ -1,6 +1,7 @@
 import os
 import json
 import time
+import httpx
 import anthropic
 
 _client = None
@@ -12,22 +13,34 @@ def _get_client():
         api_key = os.environ.get("ANTHROPIC_API_KEY")
         if not api_key:
             raise ValueError("ANTHROPIC_API_KEY environment variable is not set")
-        _client = anthropic.Anthropic(api_key=api_key, timeout=120.0)
+        _client = anthropic.Anthropic(
+            api_key=api_key,
+            timeout=httpx.Timeout(connect=10.0, read=300.0, write=30.0, pool=10.0),
+        )
     return _client
 
 
-def _call_with_retry(model, max_tokens, messages, retries=2):
-    """Call the API with simple retry on timeout/stream errors."""
+def _call_with_retry(model, max_tokens, messages, retries=3):
+    """Call the API with retry on timeout and transient server errors."""
     last_err = None
     for attempt in range(retries + 1):
         try:
             return _get_client().messages.create(
                 model=model, max_tokens=max_tokens, messages=messages
             )
-        except Exception as e:
+        except (anthropic.APITimeoutError, anthropic.APIConnectionError) as e:
             last_err = e
-            if attempt < retries:
-                time.sleep(2 ** attempt)  # 1s, 2s backoff
+        except anthropic.RateLimitError as e:
+            last_err = e
+        except anthropic.InternalServerError as e:
+            last_err = e
+        except anthropic.APIStatusError as e:
+            if e.status_code in (502, 503, 529):
+                last_err = e
+            else:
+                raise
+        if attempt < retries:
+            time.sleep(2 ** attempt)
     raise last_err
 
 
