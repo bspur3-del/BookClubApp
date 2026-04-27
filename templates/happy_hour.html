@@ -1,0 +1,147 @@
+{% extends "base.html" %}
+{% block title %}Carl's Cocktail Happy Hour{% endblock %}
+
+{% block extra_head %}
+<link rel="stylesheet" href="{{ url_for('static', filename='happy_hour.css') }}">
+{% endblock %}
+
+{% block content %}
+<div id="game-wrap">
+
+  <!-- ── TITLE SCREEN ──────────────────────────────────────────────────── -->
+  <div id="screen-title" class="game-screen active">
+    <div class="dungeon-title-card">
+      <div class="dungeon-title">Carl's Cocktail Happy Hour</div>
+      <div class="dungeon-subtitle">A Dungeon Crawler Carl Adventure</div>
+      <div class="title-art">🧙🐱⚔️</div>
+      <p class="dungeon-flavor">
+        Carl and his level-99 cat Donut descend into The Sloshed Dungeon.
+        Three booze-soaked chambers stand between them and the legendary Last Call.
+        The Dungeon Bartender waits at the bottom. No refunds.
+      </p>
+      <button class="btn-dungeon-primary" onclick="startGame()">Enter the Dungeon</button>
+    </div>
+  </div>
+
+  <!-- ── GAME SCREEN ────────────────────────────────────────────────────── -->
+  <div id="screen-game" class="game-screen">
+
+    <!-- HUD -->
+    <div class="game-hud">
+      <span id="hud-room">Room 1 of 4</span>
+      <span id="hud-carl-hp">Carl: 80/80</span>
+      <span id="hud-donut-hp">Donut: 45/45</span>
+      <span class="hud-gold">💰 <span id="hud-gold">5</span></span>
+    </div>
+
+    <!-- Announcer -->
+    <div class="announcer-banner" id="announcer">Welcome to the dungeon.</div>
+
+    <!-- Arena -->
+    <div class="game-arena">
+
+      <!-- Party -->
+      <div class="party-col">
+        <div class="char-card" id="carl-card">
+          <div class="char-name">Carl</div>
+          <div class="char-avatar">🧙</div>
+          <div class="hp-wrap"><div class="hp-fill carl" id="carl-hp-bar" style="width:100%"></div></div>
+          <div class="hp-text" id="carl-hp-text">80/80</div>
+          <div class="char-sub" id="carl-sub"></div>
+          <div class="char-buffs" id="carl-buffs"></div>
+        </div>
+        <div class="char-card" id="donut-card">
+          <div class="char-name">Donut</div>
+          <div class="char-avatar">🐱</div>
+          <div class="hp-wrap"><div class="hp-fill donut" id="donut-hp-bar" style="width:100%"></div></div>
+          <div class="hp-text" id="donut-hp-text">45/45</div>
+          <div class="char-sub" id="donut-sub">Ready</div>
+          <div class="char-buffs" id="donut-buffs"></div>
+        </div>
+      </div>
+
+      <!-- Center -->
+      <div class="arena-center">
+        <div class="room-label" id="room-label">Loading…</div>
+        <div class="vs-badge">VS</div>
+        <div class="room-desc" id="room-desc"></div>
+      </div>
+
+      <!-- Enemy -->
+      <div class="enemy-col">
+        <div class="char-card enemy-card" id="enemy-card">
+          <div class="char-name" id="enemy-name">???</div>
+          <div class="char-avatar" id="enemy-avatar">👾</div>
+          <div class="hp-wrap"><div class="hp-fill enemy" id="enemy-hp-bar" style="width:100%"></div></div>
+          <div class="hp-text" id="enemy-hp-text">??/??</div>
+          <div class="char-sub" id="enemy-sub"></div>
+        </div>
+      </div>
+
+    </div><!-- /game-arena -->
+
+    <!-- Inventory -->
+    <div class="inventory-strip">
+      <span class="inv-label">Items</span>
+      <div class="inv-slot empty" id="inv-0"></div>
+      <div class="inv-slot empty" id="inv-1"></div>
+      <div class="inv-slot empty" id="inv-2"></div>
+    </div>
+
+    <!-- Combat log -->
+    <div class="combat-log" id="combat-log"></div>
+
+    <!-- Action panel — managed by JS -->
+    <div class="action-panel" id="action-panel">
+      <button class="btn-act btn-attack" id="btn-attack" onclick="doAction('attack')">⚔️ Attack</button>
+      <button class="btn-act btn-defend" id="btn-defend" onclick="doAction('defend')">🛡️ Defend</button>
+      <button class="btn-act btn-item"   id="btn-item"   onclick="openItemPicker()">🎒 Item</button>
+      <button class="btn-act btn-donut"  id="btn-donut"  onclick="doAction('donut')">🐱 Cat Strike</button>
+      <button class="btn-act btn-go"     id="btn-go"     onclick="nextRoom()" style="display:none">➡️ Next Room</button>
+    </div>
+
+  </div><!-- /screen-game -->
+
+  <!-- ── SHOP SCREEN ────────────────────────────────────────────────────── -->
+  <div id="screen-shop" class="game-screen">
+    <div class="dungeon-title-card" style="padding:1.5rem 1.5rem">
+      <div class="dungeon-title" style="font-size:1.4rem">⚗️ The Travelling Merchant</div>
+      <div class="dungeon-subtitle">Spend wisely. The boss doesn't take IOUs.</div>
+      <div class="shop-wrap">
+        <div class="shop-info">Gold: 💰 <strong id="shop-gold">0</strong>
+          &nbsp;·&nbsp; Inventory: <span id="shop-inv-count">0</span>/3</div>
+        <div class="shop-grid" id="shop-grid"></div>
+        <div class="shop-actions">
+          <button class="btn-dungeon-primary" onclick="leaveShop()"
+                  style="padding:0.5rem 1.5rem;font-size:0.85rem">Continue ➡️</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── DEATH SCREEN ───────────────────────────────────────────────────── -->
+  <div id="screen-death" class="game-screen">
+    <div class="dungeon-title-card">
+      <div class="death-title">You Died</div>
+      <div class="title-art">💀🐱</div>
+      <p class="end-msg" id="death-msg">Carl has fallen...</p>
+      <button class="btn-dungeon-primary" onclick="startGame()">Try Again</button>
+    </div>
+  </div>
+
+  <!-- ── WIN SCREEN ─────────────────────────────────────────────────────── -->
+  <div id="screen-win" class="game-screen">
+    <div class="dungeon-title-card">
+      <div class="win-title">Victory!</div>
+      <div class="title-art">🏆🧙🐱</div>
+      <p class="end-msg" id="win-msg">Carl and Donut conquered the dungeon!</p>
+      <button class="btn-dungeon-primary" onclick="startGame()">Play Again</button>
+    </div>
+  </div>
+
+</div><!-- /game-wrap -->
+{% endblock %}
+
+{% block extra_scripts %}
+<script src="{{ url_for('static', filename='happy_hour.js') }}"></script>
+{% endblock %}

@@ -1,5 +1,6 @@
 import os
 import json
+import time
 import anthropic
 
 _client = None
@@ -11,8 +12,23 @@ def _get_client():
         api_key = os.environ.get("ANTHROPIC_API_KEY")
         if not api_key:
             raise ValueError("ANTHROPIC_API_KEY environment variable is not set")
-        _client = anthropic.Anthropic(api_key=api_key)
+        _client = anthropic.Anthropic(api_key=api_key, timeout=120.0)
     return _client
+
+
+def _call_with_retry(model, max_tokens, messages, retries=2):
+    """Call the API with simple retry on timeout/stream errors."""
+    last_err = None
+    for attempt in range(retries + 1):
+        try:
+            return _get_client().messages.create(
+                model=model, max_tokens=max_tokens, messages=messages
+            )
+        except Exception as e:
+            last_err = e
+            if attempt < retries:
+                time.sleep(2 ** attempt)  # 1s, 2s backoff
+    raise last_err
 
 
 def _parse_book_json(text: str) -> dict:
@@ -54,7 +70,7 @@ def get_group_recommendation(history: list[dict]) -> dict:
     approved_titles = ", ".join(f'"{h["title"]}"' for h in approved) or "none yet"
     rejected_titles = ", ".join(f'"{h["title"]}"' for h in not_approved) or "none"
 
-    message = _get_client().messages.create(
+    message = _call_with_retry(
         model="claude-sonnet-4-6",
         max_tokens=500,
         messages=[{
@@ -97,7 +113,7 @@ def get_member_recommendation(member_name: str, history: list[dict]) -> dict:
     loved_text = ", ".join(f'"{h["title"]}"' for h in loved) or "none yet"
     disliked_text = ", ".join(f'"{h["title"]}"' for h in disliked) or "none"
 
-    message = _get_client().messages.create(
+    message = _call_with_retry(
         model="claude-sonnet-4-6",
         max_tokens=500,
         messages=[{
@@ -139,7 +155,7 @@ def get_member_personality(member_name: str, history: list[dict]) -> str:
     )
 
     try:
-        message = _get_client().messages.create(
+        message = _call_with_retry(
             model="claude-sonnet-4-6",
             max_tokens=350,
             messages=[{
@@ -185,7 +201,7 @@ def get_group_personality(history: list[dict]) -> str:
     )
 
     try:
-        message = _get_client().messages.create(
+        message = _call_with_retry(
             model="claude-sonnet-4-6",
             max_tokens=350,
             messages=[{
@@ -233,7 +249,7 @@ def get_nomination_suggestions(theme: str, history: list[dict]) -> list[dict]:
             f"Books they did NOT approve: {rejected_titles}\n"
         )
 
-    message = _get_client().messages.create(
+    message = _call_with_retry(
         model="claude-sonnet-4-6",
         max_tokens=900,
         messages=[{

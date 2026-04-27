@@ -1,0 +1,433 @@
+/* ── Carl's Cocktail Happy Hour — Dungeon Game Styles ─────────────────── */
+
+#game-wrap { max-width: 700px; margin: 0 auto; }
+
+.game-screen { display: none; }
+.game-screen.active { display: block; }
+
+/* ── Title / end screens ──────────────────────────────────────────────── */
+
+.dungeon-title-card {
+  text-align: center;
+  padding: 3rem 1.5rem;
+  background: #0d0d0d;
+  border: 1px solid var(--brass);
+  border-radius: 6px;
+}
+
+.dungeon-title {
+  font-family: 'Oswald', sans-serif;
+  font-size: 2.2rem;
+  color: var(--brass-light);
+  text-transform: uppercase;
+  letter-spacing: 0.15em;
+  text-shadow: 0 0 20px rgba(184,134,11,0.4);
+  margin-bottom: 0.25rem;
+}
+
+.dungeon-subtitle {
+  font-family: 'IM Fell English', Georgia, serif;
+  color: var(--parchment-dark);
+  font-style: italic;
+  margin-bottom: 1.5rem;
+}
+
+.title-art { font-size: 3.5rem; margin: 1rem 0; }
+
+.dungeon-flavor {
+  color: rgba(237,224,196,0.75);
+  max-width: 480px;
+  margin: 0 auto 2rem;
+  line-height: 1.7;
+  font-size: 0.92rem;
+}
+
+.death-title {
+  font-family: 'Oswald', sans-serif;
+  font-size: 3rem;
+  color: #c03030;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  margin-bottom: 1rem;
+}
+
+.win-title {
+  font-family: 'Oswald', sans-serif;
+  font-size: 3rem;
+  color: var(--brass-light);
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  margin-bottom: 1rem;
+}
+
+.end-msg {
+  color: var(--parchment-dark);
+  margin-bottom: 2rem;
+  line-height: 1.7;
+  max-width: 500px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+/* ── Primary button ───────────────────────────────────────────────────── */
+
+.btn-dungeon-primary {
+  font-family: 'Oswald', sans-serif;
+  font-weight: 700;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  background: var(--brass);
+  color: var(--ink);
+  border: none;
+  padding: 0.75rem 2.5rem;
+  font-size: 1rem;
+  cursor: pointer;
+  border-radius: 3px;
+  transition: background 0.15s, transform 0.1s;
+}
+.btn-dungeon-primary:hover { background: var(--brass-light); transform: translateY(-2px); }
+
+/* ── HUD bar ──────────────────────────────────────────────────────────── */
+
+.game-hud {
+  display: flex;
+  gap: 1.5rem;
+  align-items: center;
+  padding: 0.5rem 1rem;
+  background: var(--forest);
+  border: 1px solid var(--brass);
+  border-radius: 4px 4px 0 0;
+  font-family: 'Oswald', sans-serif;
+  font-size: 0.82rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  color: var(--parchment);
+}
+.hud-gold { margin-left: auto; color: var(--brass-light); }
+
+/* ── Announcer banner ─────────────────────────────────────────────────── */
+
+.announcer-banner {
+  background: #12080a;
+  border: 1px solid var(--brass);
+  border-top: none;
+  padding: 0.55rem 1rem;
+  color: var(--brass-light);
+  font-family: 'Oswald', sans-serif;
+  font-size: 0.78rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  text-align: center;
+  min-height: 2.4rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* ── Arena ────────────────────────────────────────────────────────────── */
+
+.game-arena {
+  display: grid;
+  grid-template-columns: 1fr 1.1fr 1fr;
+  gap: 0.75rem;
+  padding: 0.75rem;
+  background: #0a0a0a;
+  border: 1px solid #222;
+  border-top: none;
+  min-height: 170px;
+}
+
+@media (max-width: 576px) {
+  .game-arena { grid-template-columns: 1fr 1fr; }
+  .arena-center { grid-column: 1 / -1; order: -1; }
+}
+
+.party-col { display: flex; flex-direction: column; gap: 0.6rem; }
+.enemy-col { display: flex; flex-direction: column; }
+
+/* ── Character cards ──────────────────────────────────────────────────── */
+
+.char-card {
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(184,134,11,0.25);
+  border-radius: 4px;
+  padding: 0.5rem 0.65rem;
+  text-align: center;
+  transition: border-color 0.3s;
+}
+.char-card.hit { animation: card-hit 0.3s ease; }
+.char-card.enemy-card { border-color: rgba(180,40,40,0.35); }
+.char-card.dead { opacity: 0.45; filter: grayscale(0.8); }
+
+@keyframes card-hit {
+  0%,100% { transform: translateX(0); }
+  25% { transform: translateX(-4px); }
+  75% { transform: translateX(4px); }
+}
+
+.char-name {
+  font-family: 'Oswald', sans-serif;
+  font-size: 0.72rem;
+  letter-spacing: 0.12em;
+  color: var(--brass-light);
+  text-transform: uppercase;
+  margin-bottom: 0.15rem;
+}
+
+.char-avatar { font-size: 2rem; line-height: 1.2; }
+
+.hp-wrap {
+  background: #2a2a2a;
+  border-radius: 3px;
+  height: 7px;
+  margin: 0.3rem 0;
+  overflow: hidden;
+}
+.hp-fill {
+  height: 100%;
+  border-radius: 3px;
+  transition: width 0.35s ease;
+}
+.hp-fill.carl  { background: #3a9e3a; }
+.hp-fill.donut { background: #c56ebf; }
+.hp-fill.enemy { background: #b33030; }
+.hp-fill.low   { background: #c07020 !important; }
+.hp-fill.crit  { background: #a02020 !important; animation: pulse 1s infinite; }
+
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.55} }
+
+.hp-text {
+  font-size: 0.7rem;
+  color: rgba(237,224,196,0.65);
+}
+
+.char-sub {
+  font-size: 0.62rem;
+  color: var(--ink-faint);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin-top: 0.2rem;
+  min-height: 0.9rem;
+}
+.char-sub.ready { color: #c08fdf; }
+.char-buffs {
+  font-size: 0.6rem;
+  color: var(--brass-light);
+  margin-top: 0.15rem;
+  min-height: 0.8rem;
+}
+
+/* ── Arena center ─────────────────────────────────────────────────────── */
+
+.arena-center {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  padding: 0.25rem;
+}
+
+.room-label {
+  font-family: 'Oswald', sans-serif;
+  font-size: 0.72rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  text-align: center;
+}
+
+.room-desc {
+  font-size: 0.72rem;
+  color: rgba(237,224,196,0.55);
+  text-align: center;
+  line-height: 1.5;
+  max-width: 160px;
+}
+
+.vs-badge {
+  font-family: 'Oswald', sans-serif;
+  font-size: 1.3rem;
+  font-weight: 900;
+  color: rgba(184,134,11,0.3);
+  letter-spacing: 0.2em;
+}
+
+/* ── Inventory strip ──────────────────────────────────────────────────── */
+
+.inventory-strip {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  background: #0e0e0e;
+  border: 1px solid #1e1e1e;
+  border-top: none;
+  flex-wrap: wrap;
+}
+
+.inv-label {
+  font-family: 'Oswald', sans-serif;
+  font-size: 0.65rem;
+  letter-spacing: 0.12em;
+  color: var(--ink-faint);
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.inv-slot {
+  width: 42px; height: 42px;
+  border: 1px solid #2a2a2a;
+  border-radius: 3px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1.25rem;
+  background: #151515;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+  position: relative;
+}
+.inv-slot:not(.empty):hover { border-color: var(--brass); background: #221e0a; }
+.inv-slot.empty { opacity: 0.25; cursor: default; }
+
+/* ── Combat log ───────────────────────────────────────────────────────── */
+
+.combat-log {
+  background: #080808;
+  border: 1px solid #1a1a1a;
+  border-top: none;
+  padding: 0.6rem 0.8rem;
+  height: 96px;
+  overflow-y: auto;
+  font-size: 0.77rem;
+  color: rgba(237,224,196,0.7);
+  line-height: 1.6;
+  font-family: 'Courier New', monospace;
+}
+.log-carl   { color: #5bab5b; }
+.log-donut  { color: #c56ebf; }
+.log-enemy  { color: #e05050; }
+.log-system { color: var(--brass-light); font-style: italic; }
+.log-loot   { color: #80b0ff; }
+
+/* ── Action panel ─────────────────────────────────────────────────────── */
+
+.action-panel {
+  padding: 0.6rem 0.6rem;
+  background: #0d0d0d;
+  border: 1px solid #1e1e1e;
+  border-top: none;
+  border-radius: 0 0 4px 4px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  align-items: flex-start;
+}
+
+.btn-act {
+  font-family: 'Oswald', sans-serif;
+  font-size: 0.75rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 0.45rem 0.9rem;
+  border-radius: 3px;
+  border: 1px solid;
+  cursor: pointer;
+  transition: opacity 0.15s, transform 0.1s;
+  white-space: nowrap;
+}
+.btn-act:disabled { opacity: 0.35; cursor: not-allowed; }
+.btn-act:not(:disabled):hover { transform: translateY(-1px); }
+.btn-act:not(:disabled):active { transform: translateY(0); }
+
+.btn-attack  { background:#2a1010; border-color:#a03030; color:#e08080; }
+.btn-attack:not(:disabled):hover  { background:#3a1818; }
+.btn-defend  { background:#101828; border-color:#305888; color:#80a8d8; }
+.btn-defend:not(:disabled):hover  { background:#18283a; }
+.btn-item    { background:#0e1e0e; border-color:#305830; color:#70b070; }
+.btn-item:not(:disabled):hover    { background:#182a18; }
+.btn-donut   { background:#1e0e28; border-color:#783878; color:#c070c8; }
+.btn-donut:not(:disabled):hover   { background:#2a1838; }
+.btn-go      { background:#1e1a08; border-color:var(--brass); color:var(--brass-light); }
+.btn-go:not(:disabled):hover      { background:#2a2410; }
+
+/* ── Item picker ──────────────────────────────────────────────────────── */
+
+.item-picker {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  align-items: center;
+  width: 100%;
+}
+
+.btn-pick {
+  display: flex; align-items: center; gap: 0.35rem;
+  padding: 0.4rem 0.7rem;
+  border-radius: 3px;
+  border: 1px solid #383830;
+  background: #181810;
+  color: rgba(237,224,196,0.8);
+  font-size: 0.75rem;
+  cursor: pointer;
+  transition: border-color 0.15s;
+}
+.btn-pick:hover { border-color: var(--brass-light); }
+
+.btn-cancel {
+  padding: 0.4rem 0.7rem;
+  border-radius: 3px;
+  border: 1px solid #333;
+  background: none;
+  color: #666;
+  font-size: 0.75rem;
+  cursor: pointer;
+}
+.btn-cancel:hover { color: #999; }
+
+/* ── Shop ─────────────────────────────────────────────────────────────── */
+
+.shop-wrap { width: 100%; }
+
+.shop-info {
+  font-size: 0.78rem;
+  color: rgba(237,224,196,0.65);
+  margin-bottom: 0.6rem;
+}
+
+.shop-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+  gap: 0.6rem;
+  margin-bottom: 0.6rem;
+}
+
+.shop-card {
+  background: #131308;
+  border: 1px solid #2a2810;
+  border-radius: 4px;
+  padding: 0.5rem;
+  text-align: center;
+  font-size: 0.72rem;
+  color: rgba(237,224,196,0.7);
+}
+.shop-card-emoji { font-size: 1.7rem; }
+.shop-card-name { font-weight: bold; margin: 0.2rem 0 0.1rem; color: var(--parchment); }
+.shop-card-desc { color: #666; margin-bottom: 0.3rem; font-size: 0.65rem; }
+.shop-card-price { color: var(--brass-light); font-weight: bold; margin-bottom: 0.3rem; }
+
+.btn-buy {
+  font-size: 0.68rem;
+  padding: 0.2rem 0.55rem;
+  border: 1px solid #503a10;
+  background: #2a1e06;
+  color: var(--brass-light);
+  border-radius: 3px;
+  cursor: pointer;
+  font-family: 'Oswald', sans-serif;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.btn-buy:disabled { opacity: 0.35; cursor: not-allowed; }
+.btn-buy:not(:disabled):hover { background: #3a2a10; }
+
+.shop-actions { display: flex; gap: 0.4rem; flex-wrap: wrap; }
