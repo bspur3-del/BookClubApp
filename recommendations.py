@@ -229,6 +229,28 @@ def get_group_personality(history: list[dict]) -> str:
         return f"Personality unavailable: {e}"
 
 
+def get_boss_character(books: list[dict]) -> dict:
+    """Return a boss character from one of the club's books for the dungeon game."""
+    if not books:
+        return {}
+    titles = "\n".join(f'- "{b["title"]}" by {b["author"]}' for b in books[:8])
+    message = _call_with_retry(
+        model="claude-haiku-4-5-20251001",
+        max_tokens=200,
+        messages=[{
+            "role": "user",
+            "content": (
+                f"Book club reading list:\n{titles}\n\n"
+                "Pick one book and name a villain, antagonist, or imposing character from it "
+                "who would make a memorable video game boss. Respond ONLY with valid JSON:\n"
+                '{"book": "Title", "character": "Character Name", "emoji": "🦹", '
+                '"flavor": "One atmospheric sentence.", "hp": 110, "atk_min": 16, "atk_max": 26}'
+            ),
+        }],
+    )
+    return _parse_book_json(message.content[0].text)
+
+
 def get_nomination_suggestions(theme: str, history: list[dict]) -> list[dict]:
     """Return 3 nomination suggestions for a given theme with predicted Gonder Scale ratings."""
     history_section = ""

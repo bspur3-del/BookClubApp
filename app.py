@@ -5,7 +5,7 @@ from models import db, Member, Book, Rating, PastBook, PastBookRating, APPROVAL_
 from recommendations import (
     get_group_recommendation, get_member_recommendation,
     get_member_personality, get_group_personality,
-    get_nomination_suggestions,
+    get_nomination_suggestions, get_boss_character,
 )
 from dotenv import load_dotenv
 
@@ -389,6 +389,22 @@ def suggest_nominations():
 @app.route("/happy-hour")
 def happy_hour():
     return render_template("happy_hour.html")
+
+
+@app.route("/happy-hour/boss")
+def game_boss():
+    books = []
+    for b in Book.query.all():
+        books.append({"title": b.title, "author": b.author})
+    for pb in PastBook.query.all():
+        books.append({"title": pb.title, "author": pb.author})
+    if not books or not app.config["HAS_API_KEY"]:
+        return jsonify({"default": True})
+    try:
+        data = get_boss_character(books)
+        return jsonify(data)
+    except Exception:
+        return jsonify({"default": True})
 
 
 if __name__ == "__main__":
