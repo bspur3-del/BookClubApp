@@ -1,0 +1,95 @@
+{% extends "base.html" %}
+{% block title %}Book Club Trivia{% endblock %}
+
+{% block extra_head %}
+<link rel="stylesheet" href="{{ url_for('static', filename='trivia.css') }}">
+{% endblock %}
+
+{% block content %}
+<div id="tq-wrap">
+
+  <!-- ── START ─────────────────────────────────────────────────────────────── -->
+  <div id="screen-tq-start" class="tq-screen active">
+    <div class="tq-card">
+      <div class="tq-title">📚 Book Club Trivia</div>
+      <div class="tq-subtitle">How well do you know the books?</div>
+      <div class="tq-art">🐐📖✨</div>
+      <p class="tq-flavor">10 questions from the books you've read, plus one brutal bonus question worth 3 points. Maximum score: 13.</p>
+      <div class="tq-member-select">
+        <label class="tq-label" for="tq-member">Who's playing?</label>
+        <select id="tq-member" class="tq-select">
+          <option value="">— Select your name —</option>
+          {% for member in members %}
+          <option value="{{ member.name }}">{{ member.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <button class="tq-btn-primary" id="tq-start-btn" onclick="startTrivia()" disabled>Start Quiz →</button>
+      <div class="tq-scores-link">
+        <button class="tq-btn-link" onclick="showLeaderboard()">📋 View Leaderboard</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── LOADING ───────────────────────────────────────────────────────────── -->
+  <div id="screen-tq-loading" class="tq-screen">
+    <div class="tq-card">
+      <div class="tq-title">One moment...</div>
+      <div class="tq-art"><span class="tq-spin">⚙️</span></div>
+      <p class="tq-flavor" id="tq-loading-msg">Raiding the books for secrets...</p>
+    </div>
+  </div>
+
+  <!-- ── QUESTION ──────────────────────────────────────────────────────────── -->
+  <div id="screen-tq-question" class="tq-screen">
+    <div class="tq-question-wrap">
+      <div class="tq-bonus-banner" id="tq-bonus-banner" style="display:none">
+        ⭐ BONUS QUESTION — Worth 3 Points ⭐
+      </div>
+      <div class="tq-progress-bar">
+        <div class="tq-progress-fill" id="tq-progress-fill" style="width:0%"></div>
+      </div>
+      <div class="tq-meta">
+        <span id="tq-q-counter">Question 1 of 10</span>
+        <span id="tq-score-display">Score: 0</span>
+      </div>
+      <div class="tq-book-source" id="tq-book-source"></div>
+      <div class="tq-question-text" id="tq-question-text"></div>
+      <div class="tq-options" id="tq-options"></div>
+      <div class="tq-feedback" id="tq-feedback" style="display:none"></div>
+    </div>
+  </div>
+
+  <!-- ── RESULTS ───────────────────────────────────────────────────────────── -->
+  <div id="screen-tq-results" class="tq-screen">
+    <div class="tq-card">
+      <div class="tq-title" id="tq-result-title">Quiz Complete!</div>
+      <div class="tq-score-big" id="tq-score-big">0 / 13</div>
+      <div class="tq-score-label" id="tq-score-label"></div>
+      <div class="tq-review" id="tq-review"></div>
+      <div class="tq-leaderboard-wrap" id="tq-leaderboard-wrap"></div>
+      <div class="tq-actions">
+        <button class="tq-btn-primary" onclick="resetTrivia()">Play Again</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── LEADERBOARD ───────────────────────────────────────────────────────── -->
+  <div id="screen-tq-leaderboard" class="tq-screen">
+    <div class="tq-card">
+      <div class="tq-title" style="font-size:1.5rem">📋 Leaderboard</div>
+      <div class="tq-subtitle">Top scores from the book club</div>
+      <div id="tq-lb-table-wrap" style="margin:1rem 0"></div>
+      <div class="tq-actions">
+        <button class="tq-btn-primary" onclick="showScreen('screen-tq-start')">← Back</button>
+        <button class="tq-btn-secondary" onclick="clearLeaderboard()">Reset Scores</button>
+      </div>
+    </div>
+  </div>
+
+</div><!-- /tq-wrap -->
+{% endblock %}
+
+{% block extra_scripts %}
+<script src="{{ url_for('static', filename='trivia.js') }}"></script>
+{% endblock %}
