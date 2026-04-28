@@ -80,6 +80,9 @@ const HARDCODED_COVERS = {
                                "https://books.google.com/books/content?id=robYzQEACAAJ&printsec=frontcover&img=1&zoom=1"],
   "where the waves turn back":"https://covers.openlibrary.org/b/isbn/9781546003441-M.jpg",
   "once there were wolves":  "https://covers.openlibrary.org/b/isbn/9781250244147-M.jpg",
+  "kings of the wyld":      ["https://covers.openlibrary.org/b/id/8397539-M.jpg",
+                              "https://covers.openlibrary.org/b/isbn/9780316362474-M.jpg",
+                              "https://books.google.com/books/content?id=KfNzDQAAQBAJ&printsec=frontcover&img=1&zoom=1"],
 };
 
 const COVER_MISS_TTL = 7 * 24 * 60 * 60 * 1000; // retry "not found" after 7 days
