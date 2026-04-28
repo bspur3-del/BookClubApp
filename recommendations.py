@@ -1,6 +1,7 @@
 import os
 import json
 import time
+import httpx
 import anthropic
 
 _client = None
@@ -12,22 +13,34 @@ def _get_client():
         api_key = os.environ.get("ANTHROPIC_API_KEY")
         if not api_key:
             raise ValueError("ANTHROPIC_API_KEY environment variable is not set")
-        _client = anthropic.Anthropic(api_key=api_key, timeout=120.0)
+        _client = anthropic.Anthropic(
+            api_key=api_key,
+            timeout=httpx.Timeout(connect=10.0, read=300.0, write=30.0, pool=10.0),
+        )
     return _client
 
 
-def _call_with_retry(model, max_tokens, messages, retries=2):
-    """Call the API with simple retry on timeout/stream errors."""
+def _call_with_retry(model, max_tokens, messages, retries=3):
+    """Call the API with retry on timeout and transient server errors."""
     last_err = None
     for attempt in range(retries + 1):
         try:
             return _get_client().messages.create(
                 model=model, max_tokens=max_tokens, messages=messages
             )
-        except Exception as e:
+        except (anthropic.APITimeoutError, anthropic.APIConnectionError) as e:
             last_err = e
-            if attempt < retries:
-                time.sleep(2 ** attempt)  # 1s, 2s backoff
+        except anthropic.RateLimitError as e:
+            last_err = e
+        except anthropic.InternalServerError as e:
+            last_err = e
+        except anthropic.APIStatusError as e:
+            if e.status_code in (502, 503, 529):
+                last_err = e
+            else:
+                raise
+        if attempt < retries:
+            time.sleep(2 ** attempt)
     raise last_err
 
 
@@ -299,3 +312,38 @@ def get_nomination_suggestions(theme: str, history: list[dict]) -> list[dict]:
         }],
     )
     return _parse_book_list(message.content[0].text)
+
+
+def get_trivia_questions(books: list[dict]) -> list[dict]:
+    """Generate 10 multiple-choice trivia questions + 1 harder bonus from the club's reading list."""
+    if not books:
+        raise ValueError("No books to generate trivia from.")
+
+    book_list = "\n".join(f'- "{b["title"]}" by {b["author"]}' for b in books[:15])
+
+    message = _call_with_retry(
+        model="claude-sonnet-4-6",
+        max_tokens=3000,
+        messages=[{
+            "role": "user",
+            "content": (
+                "You are creating a multiple-choice book trivia quiz for a book club.\n\n"
+                f"Books the club has read:\n{book_list}\n\n"
+                "Generate EXACTLY 11 questions:\n"
+                "- Questions 1–10: regular difficulty mix (easy → hard). Each worth 1 point.\n"
+                "- Question 11: one BONUS question — a specific detail only a careful reader would know. Worth 3 points.\n\n"
+                "Rules:\n"
+                "- Every question must be about one of the listed books above — plot, characters, settings, specific events, names, dialogue\n"
+                "- Each question has exactly 4 answer choices (A, B, C, D) — one correct, three plausible wrong answers\n"
+                "- Spread questions across different books when multiple books are listed\n"
+                "- Do NOT ask vague or generic questions — be specific to the actual text\n"
+                "- Wrong answers must be plausible (not obviously silly)\n\n"
+                'Respond ONLY with a valid JSON array. The "correct" field is the 0-indexed position of the correct answer in the options array:\n'
+                '[{"question": "...", "options": ["A. ...", "B. ...", "C. ...", "D. ..."], "correct": 0, "book": "Title", "bonus": false}]'
+            ),
+        }],
+    )
+    questions = _parse_book_list(message.content[0].text)
+    for i, q in enumerate(questions):
+        q["bonus"] = (i == 10)
+    return questions[:11]
