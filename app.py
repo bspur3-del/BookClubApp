@@ -6,6 +6,7 @@ from recommendations import (
     get_group_recommendation, get_member_recommendation,
     get_member_personality, get_group_personality,
     get_nomination_suggestions, get_boss_character,
+    get_trivia_questions,
 )
 from dotenv import load_dotenv
 
@@ -384,6 +385,30 @@ def suggest_nominations():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
     return jsonify(suggestions)
+
+
+@app.route("/trivia")
+def trivia():
+    members = Member.query.order_by(Member.name).all()
+    return render_template("trivia.html", members=members)
+
+
+@app.route("/trivia/questions")
+def trivia_questions():
+    books = []
+    for b in Book.query.all():
+        books.append({"title": b.title, "author": b.author})
+    for pb in PastBook.query.all():
+        books.append({"title": pb.title, "author": pb.author})
+    if not books:
+        return jsonify({"error": "No books in the club's reading list yet."}), 400
+    if not app.config["HAS_API_KEY"]:
+        return jsonify({"error": "API key not configured."}), 503
+    try:
+        questions = get_trivia_questions(books)
+        return jsonify(questions)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 
 @app.route("/happy-hour")

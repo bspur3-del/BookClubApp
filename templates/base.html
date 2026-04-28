@@ -30,6 +30,9 @@
           <li class="nav-item">
             <a class="nav-link{% if request.endpoint == 'happy_hour' %} active{% endif %}" href="{{ url_for('happy_hour') }}">🍸 Happy Hour</a>
           </li>
+          <li class="nav-item">
+            <a class="nav-link{% if request.endpoint == 'trivia' %} active{% endif %}" href="{{ url_for('trivia') }}">📚 Trivia</a>
+          </li>
         </ul>
       </div>
     </div>

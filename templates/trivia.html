@@ -1,0 +1,296 @@
+{% extends "base.html" %}
+{% block title %}Book Club Trivia{% endblock %}
+
+{% block extra_head %}
+<style>
+  #trivia-wrap { max-width: 700px; margin: 0 auto; }
+
+  .trivia-screen { display: none; }
+  .trivia-screen.active { display: block; }
+
+  /* ── Setup ── */
+  .trivia-card {
+    background: var(--card-bg, #fff);
+    border-radius: 12px;
+    padding: 2rem;
+    box-shadow: 0 2px 12px rgba(0,0,0,.08);
+    text-align: center;
+  }
+  .trivia-card h1 { font-family: 'Playfair Display', serif; margin-bottom: .5rem; }
+  .trivia-card p.lead { color: #666; margin-bottom: 1.5rem; }
+
+  #member-select { max-width: 300px; margin: 0 auto 1.5rem; display: block; }
+
+  /* ── Quiz ── */
+  .q-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.25rem; }
+  .q-counter { font-size: .85rem; color: #888; }
+  .q-bonus-badge {
+    background: #f0a500; color: #fff; font-size: .75rem; font-weight: 700;
+    padding: 2px 8px; border-radius: 999px; letter-spacing: .04em;
+  }
+  .q-text { font-size: 1.15rem; font-weight: 600; margin-bottom: 1.25rem; line-height: 1.4; }
+  .q-book { font-size: .8rem; color: #888; margin-bottom: 1rem; font-style: italic; }
+  .q-options { display: grid; gap: .6rem; }
+  .q-option {
+    width: 100%; text-align: left; padding: .7rem 1rem;
+    border: 2px solid #dee2e6; border-radius: 8px;
+    background: #fff; cursor: pointer; font-size: .95rem;
+    transition: border-color .15s, background .15s;
+  }
+  .q-option:hover:not(:disabled) { border-color: #6c757d; background: #f8f9fa; }
+  .q-option.correct  { border-color: #198754; background: #d1e7dd; color: #0a3622; }
+  .q-option.wrong    { border-color: #dc3545; background: #f8d7da; color: #58151c; }
+  .q-option:disabled { cursor: default; }
+
+  #next-btn { margin-top: 1rem; }
+  #feedback-text { min-height: 1.4em; margin-top: .75rem; font-weight: 600; font-size: .95rem; }
+
+  /* ── Results ── */
+  .score-big { font-size: 3rem; font-weight: 700; font-family: 'Playfair Display', serif; }
+  .score-label { color: #666; margin-bottom: 1.5rem; }
+  #leaderboard table { width: 100%; }
+  #leaderboard th { font-size: .8rem; text-transform: uppercase; letter-spacing: .05em; color: #888; }
+  #leaderboard td, #leaderboard th { padding: .4rem .6rem; }
+  #leaderboard tr.me td { font-weight: 700; background: #fffbe6; }
+  .medal { margin-right: .3rem; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div id="trivia-wrap">
+
+  <!-- ── Setup screen ─────────────────────────────────────────── -->
+  <div id="screen-setup" class="trivia-screen active">
+    <div class="trivia-card">
+      <h1>📚 Book Club Trivia</h1>
+      <p class="lead">10 questions + 1 bonus about the club's reading list.<br>Questions are generated fresh by Claude each round.</p>
+
+      {% if members %}
+        <select id="member-select" class="form-select form-select-lg">
+          <option value="" disabled selected>Who's playing?</option>
+          {% for m in members %}
+            <option value="{{ m.name }}">{{ m.name }}</option>
+          {% endfor %}
+        </select>
+      {% else %}
+        <input id="member-select" class="form-control form-control-lg" placeholder="Enter your name" style="max-width:300px;margin:0 auto 1.5rem;display:block;">
+      {% endif %}
+
+      <button id="start-btn" class="btn btn-lg btn-primary px-4" onclick="startTrivia()">Start Quiz</button>
+      <div id="setup-error" class="text-danger mt-3" style="display:none;"></div>
+    </div>
+  </div>
+
+  <!-- ── Loading screen ───────────────────────────────────────── -->
+  <div id="screen-loading" class="trivia-screen">
+    <div class="trivia-card">
+      <div class="spinner-border text-primary mb-3" style="width:3rem;height:3rem;"></div>
+      <h4>Generating questions…</h4>
+      <p class="text-muted">Claude is reading the whole list. This takes ~15 seconds.</p>
+    </div>
+  </div>
+
+  <!-- ── Quiz screen ──────────────────────────────────────────── -->
+  <div id="screen-quiz" class="trivia-screen">
+    <div class="trivia-card" style="text-align:left;">
+      <div class="q-header">
+        <span id="q-counter" class="q-counter"></span>
+        <span id="q-bonus-badge" class="q-bonus-badge" style="display:none;">⭐ BONUS — 3 pts</span>
+      </div>
+      <div id="q-book" class="q-book"></div>
+      <div id="q-text" class="q-text"></div>
+      <div id="q-options" class="q-options"></div>
+      <div id="feedback-text"></div>
+      <button id="next-btn" class="btn btn-primary" style="display:none;" onclick="nextQuestion()">Next →</button>
+    </div>
+  </div>
+
+  <!-- ── Results screen ───────────────────────────────────────── -->
+  <div id="screen-results" class="trivia-screen">
+    <div class="trivia-card">
+      <h2 style="font-family:'Playfair Display',serif;margin-bottom:.25rem;">Quiz Complete!</h2>
+      <p id="result-name" class="text-muted mb-3"></p>
+      <div class="score-big" id="score-display"></div>
+      <p class="score-label" id="score-label"></p>
+      <div id="leaderboard" class="mb-4"></div>
+      <button class="btn btn-primary me-2" onclick="restartSetup()">Play Again</button>
+      <button class="btn btn-outline-secondary" onclick="clearLeaderboard()">Clear Scores</button>
+    </div>
+  </div>
+
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+let questions = [];
+let currentQ = 0;
+let score = 0;
+let playerName = "";
+const MAX_SCORE = 10 + 3; // 10 × 1pt + bonus × 3pt
+
+function show(id) {
+  document.querySelectorAll(".trivia-screen").forEach(s => s.classList.remove("active"));
+  document.getElementById(id).classList.add("active");
+}
+
+async function startTrivia() {
+  const sel = document.getElementById("member-select");
+  const name = sel.value.trim();
+  if (!name) {
+    const err = document.getElementById("setup-error");
+    err.textContent = "Please select or enter your name first.";
+    err.style.display = "";
+    return;
+  }
+  playerName = name;
+  document.getElementById("setup-error").style.display = "none";
+  show("screen-loading");
+
+  try {
+    const res = await fetch("/trivia/questions");
+    const data = await res.json();
+    if (!res.ok || data.error) {
+      throw new Error(data.error || "Failed to load questions.");
+    }
+    questions = data;
+    currentQ = 0;
+    score = 0;
+    renderQuestion();
+    show("screen-quiz");
+  } catch (e) {
+    show("screen-setup");
+    const err = document.getElementById("setup-error");
+    err.textContent = e.message;
+    err.style.display = "";
+  }
+}
+
+function renderQuestion() {
+  const q = questions[currentQ];
+  const total = questions.length;
+  const isBonus = q.bonus;
+
+  document.getElementById("q-counter").textContent = `Question ${currentQ + 1} of ${total}`;
+  document.getElementById("q-bonus-badge").style.display = isBonus ? "" : "none";
+  document.getElementById("q-book").textContent = `📖 ${q.book}`;
+  document.getElementById("q-text").textContent = q.question;
+  document.getElementById("feedback-text").textContent = "";
+  document.getElementById("next-btn").style.display = "none";
+
+  const opts = document.getElementById("q-options");
+  opts.innerHTML = "";
+  q.options.forEach((opt, i) => {
+    const btn = document.createElement("button");
+    btn.className = "q-option";
+    btn.textContent = opt;
+    btn.onclick = () => selectAnswer(i);
+    opts.appendChild(btn);
+  });
+}
+
+function selectAnswer(chosen) {
+  const q = questions[currentQ];
+  const btns = document.querySelectorAll(".q-option");
+  btns.forEach(b => b.disabled = true);
+
+  const correct = q.correct;
+  btns[correct].classList.add("correct");
+
+  const feedback = document.getElementById("feedback-text");
+  if (chosen === correct) {
+    const pts = q.bonus ? 3 : 1;
+    score += pts;
+    feedback.textContent = q.bonus ? `✅ Correct! +3 bonus points!` : `✅ Correct! +1 point`;
+    feedback.style.color = "#198754";
+  } else {
+    btns[chosen].classList.add("wrong");
+    feedback.textContent = `❌ The correct answer was: ${q.options[correct]}`;
+    feedback.style.color = "#dc3545";
+  }
+
+  document.getElementById("next-btn").style.display = "";
+  document.getElementById("next-btn").textContent =
+    currentQ + 1 < questions.length ? "Next →" : "See Results";
+}
+
+function nextQuestion() {
+  currentQ++;
+  if (currentQ < questions.length) {
+    renderQuestion();
+  } else {
+    showResults();
+  }
+}
+
+function showResults() {
+  saveScore(playerName, score);
+
+  document.getElementById("result-name").textContent = playerName;
+  document.getElementById("score-display").textContent = `${score} / ${MAX_SCORE}`;
+  const pct = Math.round((score / MAX_SCORE) * 100);
+  let label = pct >= 90 ? "📚 Literary Legend!" : pct >= 70 ? "🌟 Great job!" : pct >= 50 ? "👍 Not bad!" : "📖 Keep reading!";
+  document.getElementById("score-label").textContent = label;
+
+  renderLeaderboard();
+  show("screen-results");
+}
+
+// ── LocalStorage leaderboard ──────────────────────────────────
+
+const LS_KEY = "bc_trivia_scores";
+
+function loadScores() {
+  try { return JSON.parse(localStorage.getItem(LS_KEY)) || []; } catch { return []; }
+}
+
+function saveScore(name, pts) {
+  const scores = loadScores();
+  scores.push({ name, score: pts, date: new Date().toLocaleDateString() });
+  // keep only best score per player, then sort
+  const best = {};
+  scores.forEach(s => {
+    if (!best[s.name] || s.score > best[s.name].score) best[s.name] = s;
+  });
+  const sorted = Object.values(best).sort((a, b) => b.score - a.score);
+  localStorage.setItem(LS_KEY, JSON.stringify(sorted));
+}
+
+function renderLeaderboard() {
+  const scores = loadScores();
+  const el = document.getElementById("leaderboard");
+  if (!scores.length) { el.innerHTML = ""; return; }
+
+  const medals = ["🥇", "🥈", "🥉"];
+  const rows = scores.map((s, i) => `
+    <tr class="${s.name === playerName ? "me" : ""}">
+      <td><span class="medal">${medals[i] || ""}</span>${escapeHtml(s.name)}</td>
+      <td class="text-end fw-bold">${s.score} / ${MAX_SCORE}</td>
+      <td class="text-end text-muted" style="font-size:.8rem;">${s.date}</td>
+    </tr>`).join("");
+
+  el.innerHTML = `<h6 class="mb-2">🏆 Leaderboard</h6>
+    <table class="table table-sm mb-0">
+      <thead><tr><th>Player</th><th class="text-end">Score</th><th class="text-end">Date</th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table>`;
+}
+
+function clearLeaderboard() {
+  if (confirm("Clear all saved scores?")) {
+    localStorage.removeItem(LS_KEY);
+    renderLeaderboard();
+  }
+}
+
+function restartSetup() {
+  show("screen-setup");
+}
+
+function escapeHtml(str) {
+  return String(str)
+    .replace(/&/g, "&amp;").replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+}
+</script>
+{% endblock %}
