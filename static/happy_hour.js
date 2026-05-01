@@ -51,8 +51,15 @@ const POWERUP_DEFS = [
   {
     id:'satchel', name:'Satchel of Holding', emoji:'💼',
     achievement:'SATCHEL OF HOLDING',
-    desc:'Extra life stored in an extra-dimensional pocket!',
-    apply(gs){ gs.player.lives = Math.min(gs.player.lives + 1, 5); }
+    desc:'+1 Life stored in an extra-dimensional pocket!',
+    apply(gs){
+      gs.player.lives = Math.min(gs.player.lives + 1, 5);
+      for (let i = 0; i < 10; i++) gs.particles.push({
+        x: gs.player.x, y: gs.player.y,
+        vx: (Math.random()-0.5)*5, vy: (Math.random()-3)*3,
+        life: 900, maxLife: 900, col: '#ff80cc',
+      });
+    }
   },
   {
     id:'blink', name:'Blink Dog Charm', emoji:'🐕',
@@ -215,6 +222,7 @@ const Game = {
     this.showScreen('game');
     this.lastTs = 0;
     this._hideQuip(); this._hideAchiev();
+    document.getElementById('mb-blink').style.visibility = 'hidden';
     this.loop(0);
   },
 
@@ -259,6 +267,8 @@ const Game = {
     if (gs.player.blinks > 0) {
       gs.player.blinks--;
       gs.player.x = (gs.player.x < CW / 2) ? CW - 50 : 50;
+      if (gs.player.blinks === 0)
+        document.getElementById('mb-blink').style.visibility = 'hidden';
     }
   },
 
@@ -348,7 +358,7 @@ const Game = {
   _formationSpeed() {
     const gs = this.gs;
     const alive = gs.enemies.filter(e => !e.diving).length;
-    const base = 0.8 + gs.wave * 0.15;
+    const base = 0.6 + gs.wave * 0.07;
     return base * (1 + (20 - Math.min(alive, 20)) * 0.05);
   },
 
@@ -389,7 +399,7 @@ const Game = {
           e.diveTimer = (e.diveTimer || (5000 + Math.random()*8000)) - dt;
           if (e.diveTimer <= 0) {
             e.diving = true;
-            e.diveSpd = 3.5 + gs.wave * 0.2;
+            e.diveSpd = 2.5 + gs.wave * 0.1;
             e.diveShootTimer = 900 + Math.random() * 400;
             e.diveTimer = 6000 + Math.random() * 8000;
           }
@@ -435,7 +445,7 @@ const Game = {
   _updateEBullets(dt) {
     const gs = this.gs, p = gs.player;
     gs.eBullets = gs.eBullets.filter(b => {
-      b.y += 5 + gs.wave * 0.2;
+      b.y += 4 + gs.wave * 0.1;
       if (b.y > CH) return false;
       // Hit player
       if (Math.abs(b.x - p.x) < 20 && Math.abs(b.y - p.y) < 20) {
@@ -527,6 +537,8 @@ const Game = {
   _collectPowerup(def) {
     const gs = this.gs;
     def.apply(gs);
+    if (gs.player.blinks > 0)
+      document.getElementById('mb-blink').style.visibility = 'visible';
     this._showQuip(pick(SYSTEM_QUIPS.powerup), 3000);
     setTimeout(() => { if (this.gs===gs) this._showQuip(pick(DONUT_QUIPS.powerup), 2500); }, 1600);
     this._showAchiev(def.achievement, def.name + ' — ' + def.desc);
@@ -564,8 +576,8 @@ const Game = {
                  : gs.wave <= 4 ? ENEMY_DEFS.slice(0,5)
                  : gs.wave <= 6 ? ENEMY_DEFS.slice(0,7)
                  : ENEMY_DEFS;
-      const cols = Math.min(6 + Math.floor(gs.wave / 2), 10);
-      const rows = Math.min(2 + Math.floor(gs.wave / 3), 5);
+      const cols = Math.min(5 + Math.floor(gs.wave / 3), 9);
+      const rows = Math.min(2 + Math.floor(gs.wave / 4), 4);
       const spacingX = Math.min(52, (CW - 80) / cols);
       const spacingY = 54;
       const startX = (CW - (cols - 1) * spacingX) / 2;
@@ -573,7 +585,7 @@ const Game = {
       for (let r = 0; r < rows; r++) {
         for (let c = 0; c < cols; c++) {
           const def = pick(pool);
-          const hpMult = 1 + (gs.wave - 1) * 0.12;
+          const hpMult = 1 + (gs.wave - 1) * 0.06;
           const hp = Math.ceil(def.hp * hpMult);
           gs.enemies.push({
             x: startX + c * spacingX,

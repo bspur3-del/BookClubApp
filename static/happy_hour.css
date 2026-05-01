@@ -155,9 +155,9 @@
 
 #achievement-popup {
   position: absolute;
-  top: 12px;
+  top: 55px;
   left: 50%;
-  transform: translateX(-50%) translateY(-120px);
+  transform: translateX(-50%) translateY(-160px);
   background: linear-gradient(135deg, #1a0830, #2a1050);
   border: 2px solid #c8a0ff;
   border-radius: 6px;
@@ -170,7 +170,7 @@
   pointer-events: none;
 }
 
-.achievement-off { transform: translateX(-50%) translateY(-120px) !important; }
+.achievement-off { transform: translateX(-50%) translateY(-160px) !important; }
 .achievement-on  { transform: translateX(-50%) translateY(0px) !important; }
 
 .ach-label {
