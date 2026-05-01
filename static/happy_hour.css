@@ -154,24 +154,21 @@
 /* ── Achievement popup ──────────────────────────────────────────────────── */
 
 #achievement-popup {
-  position: absolute;
-  top: 55px;
-  left: 50%;
-  transform: translateX(-50%) translateY(-160px);
   background: linear-gradient(135deg, #1a0830, #2a1050);
   border: 2px solid #c8a0ff;
   border-radius: 6px;
-  padding: 0.6rem 1.2rem;
   text-align: center;
-  min-width: 280px;
   box-shadow: 0 0 24px rgba(180,100,255,0.5);
-  transition: transform 0.4s cubic-bezier(0.34,1.56,0.64,1);
-  z-index: 10;
+  overflow: hidden;
+  max-height: 0;
+  opacity: 0;
+  padding: 0 1.2rem;
+  transition: max-height 0.35s ease, opacity 0.3s ease, padding 0.3s ease;
   pointer-events: none;
 }
 
-.achievement-off { transform: translateX(-50%) translateY(-160px) !important; }
-.achievement-on  { transform: translateX(-50%) translateY(0px) !important; }
+.achievement-off { max-height: 0 !important; opacity: 0 !important; padding: 0 1.2rem !important; }
+.achievement-on  { max-height: 120px !important; opacity: 1 !important; padding: 0.6rem 1.2rem !important; }
 
 .ach-label {
   font-family: 'Oswald', sans-serif;
@@ -197,24 +194,23 @@
 /* ── Quip bar ───────────────────────────────────────────────────────────── */
 
 #quip-bar {
-  position: absolute;
-  bottom: 0;
-  left: 0; right: 0;
   background: rgba(10,4,20,0.88);
-  border-top: 1px solid #3a1a60;
+  border: 1px solid #3a1a60;
+  border-top: none;
   font-family: 'Courier New', monospace;
   font-size: 0.75rem;
   color: #9a70c0;
-  padding: 0.35rem 0.75rem;
+  padding: 0 0.75rem;
   text-align: left;
+  overflow: hidden;
+  max-height: 0;
   opacity: 0;
-  transition: opacity 0.3s;
+  transition: max-height 0.3s ease, opacity 0.3s ease, padding 0.3s ease;
   pointer-events: none;
-  min-height: 1.6rem;
   line-height: 1.5;
 }
-.quip-off { opacity: 0 !important; }
-.quip-on  { opacity: 1 !important; }
+.quip-off { max-height: 0 !important; opacity: 0 !important; padding: 0 0.75rem !important; }
+.quip-on  { max-height: 3rem !important; opacity: 1 !important; padding: 0.35rem 0.75rem !important; }
 
 /* ── Mobile controls ────────────────────────────────────────────────────── */
 
