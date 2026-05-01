@@ -863,7 +863,6 @@ const Game = {
   // ── Achievement popup ─────────────────────────────────────────────────────
   _showAchiev(name, desc) {
     document.getElementById('ach-name').textContent = name;
-    document.getElementById('ach-desc').textContent = desc;
     const el = document.getElementById('achievement-popup');
     el.className = 'achievement-on';
     clearTimeout(this._achievTimer);
