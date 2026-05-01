@@ -366,7 +366,7 @@ const Game = {
         e.y += (dy/dist) * e.diveSpd;
         e.diveShootTimer -= dt;
         if (e.diveShootTimer <= 0 && e.def.shoots) {
-          e.diveShootTimer = 600 + Math.random() * 400;
+          e.diveShootTimer = 1000 + Math.random() * 600;
           gs.eBullets.push({x: e.x, y: e.y + 20});
         }
         // Return to formation if reached player area or off screen
@@ -380,7 +380,7 @@ const Game = {
         if (e.def.shoots && e.y > HUD_H + 30) {
           e.shootTimer = (e.shootTimer || 3000) - dt;
           if (e.shootTimer <= 0) {
-            e.shootTimer = 2500 + Math.random() * 3000 - gs.wave * 100;
+            e.shootTimer = 3500 + Math.random() * 3000 - Math.min(gs.wave, 8) * 80;
             gs.eBullets.push({x: e.x, y: e.y + 20});
           }
         }
@@ -390,7 +390,7 @@ const Game = {
           if (e.diveTimer <= 0) {
             e.diving = true;
             e.diveSpd = 3.5 + gs.wave * 0.2;
-            e.diveShootTimer = 400;
+            e.diveShootTimer = 900 + Math.random() * 400;
             e.diveTimer = 6000 + Math.random() * 8000;
           }
         }
@@ -452,7 +452,7 @@ const Game = {
     gs.powerups = gs.powerups.filter(pu => {
       pu.y += pu.vy;
       if (pu.y > CH) return false;
-      if (Math.abs(pu.x - p.x) < 28 && Math.abs(pu.y - p.y) < 28) {
+      if (Math.abs(pu.x - p.x) < 42 && Math.abs(pu.y - p.y) < 42) {
         this._collectPowerup(pu.def);
         return false;
       }
@@ -488,9 +488,9 @@ const Game = {
     }
 
     // Power-up drop
-    const dropChance = e.def.dropPU ? 1.0 : 0.08;
+    const dropChance = e.def.dropPU ? 1.0 : 0.18;
     if (Math.random() < dropChance) {
-      gs.powerups.push({ x: e.x, y: e.y, vy: 1.2, def: pick(POWERUP_DEFS) });
+      gs.powerups.push({ x: e.x, y: e.y, vy: 0.85, def: pick(POWERUP_DEFS) });
     }
 
     // Quip every 3 kills

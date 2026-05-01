@@ -146,6 +146,9 @@
   display: block;
   width: 100%;
   image-rendering: pixelated;
+  touch-action: none;
+  -webkit-user-select: none;
+  user-select: none;
 }
 
 /* ── Achievement popup ──────────────────────────────────────────────────── */
@@ -235,6 +238,8 @@
   touch-action: none;
   -webkit-user-select: none;
   user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  -webkit-touch-callout: none;
 }
 .mb-blink {
   background: rgba(40,10,80,0.5);
