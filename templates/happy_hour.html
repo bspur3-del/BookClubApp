@@ -1,132 +1,118 @@
 {% extends "base.html" %}
-{% block title %}Carl's Cocktail Happy Hour{% endblock %}
+{% block title %}Princess Donut's Dungeon Defense{% endblock %}
 
 {% block extra_head %}
 <link rel="stylesheet" href="{{ url_for('static', filename='happy_hour.css') }}">
 {% endblock %}
 
 {% block content %}
-<div id="hh-wrap">
+<div id="game-wrap">
 
-  <!-- ── TITLE ────────────────────────────────────────────────────────────── -->
-  <div id="screen-title" class="hh-screen active">
-    <div class="hh-title-card">
-      <div class="hh-title">Carl's Cocktail Happy Hour</div>
-      <div class="hh-subtitle">A Dungeon Crawler Carl Adventure</div>
-      <div class="hh-art">🧑🐱⚔️</div>
-      <p class="hh-flavor">
-        Carl and his cat Donut must navigate the dungeon.
-        Defeat 3 enemies to unlock the boss door.
-        Use <strong>Arrow keys / WASD</strong> to move, <strong>Space / Up</strong> to jump.
-      </p>
-      <button class="hh-btn-primary" id="start-btn" onclick="startGame()">Enter the Dungeon</button>
-    </div>
-  </div>
-
-  <!-- ── OVERWORLD ─────────────────────────────────────────────────────────── -->
-  <div id="screen-overworld" class="hh-screen">
-    <div class="ow-container">
-      <canvas id="game-canvas" height="300"></canvas>
-      <div id="mobile-controls">
-        <button id="mb-left"  class="mb-btn" aria-label="Left">◀</button>
-        <button id="mb-jump"  class="mb-btn mb-jump" aria-label="Jump">▲</button>
-        <button id="mb-right" class="mb-btn" aria-label="Right">▶</button>
+  <!-- ── INTRO ──────────────────────────────────────────────────────────────── -->
+  <div id="screen-intro" class="pd-screen active">
+    <div class="pd-card">
+      <div class="pd-floor-banner">⚠ FLOOR 23 — SECTOR 7 ⚠</div>
+      <div class="pd-title">Princess Donut's<br>Dungeon Defense</div>
+      <div class="pd-subtitle">A Dungeon Crawler Carl™ Unauthorized Side-Quest</div>
+      <div class="pd-art">👑🐱✨</div>
+      <div class="pd-lore">
+        <p>The Borant Corporation's dungeon has activated its <em>Horde Protocols</em>.
+        Thousands of mobs are swarming Floor 23. Crawlers are fleeing in all directions.</p>
+        <p>Carl told Princess Donut to wait at the stairwell.</p>
+        <p><strong>She did not wait at the stairwell.</strong></p>
+        <p>Armed with a devastating Magic Missile and a sense of personal superiority
+        that borders on a medical condition, Princess Donut stands alone against
+        the incoming horde. The cameras are watching. The audience is 4.7 billion strong.</p>
+        <p class="pd-system-lore">[ The System — formerly installed in an alien amusement park
+        where it skinned 47 rabbits and exploded a tourist in the gift shop —
+        is managing this encounter. Survival probability: 12%.
+        Princess Donut considers this number "aggressively wrong." ]</p>
+      </div>
+      <div class="pd-controls-hint">
+        <span><strong>← →</strong> Move</span>
+        <span><strong>Auto-fires</strong> Magic Missile</span>
+        <span><strong>SPACE</strong> Blink (if acquired)</span>
+      </div>
+      <div class="pd-btn-row">
+        <button class="pd-btn-primary" onclick="Game.start()">Enter the Dungeon</button>
+        <button class="pd-btn-secondary" onclick="Game.showLeaderboard()">📜 Hall of Records</button>
       </div>
     </div>
   </div>
 
-  <!-- ── BATTLE ────────────────────────────────────────────────────────────── -->
-  <div id="screen-battle" class="hh-screen">
-    <div class="battle-wrap">
+  <!-- ── GAME ───────────────────────────────────────────────────────────────── -->
+  <div id="screen-game" class="pd-screen">
+    <div class="canvas-outer">
+      <canvas id="game-canvas"></canvas>
 
-      <!-- Battle field -->
-      <div class="battle-field">
-        <div class="bf-enemy-info">
-          <div class="bf-name" id="b-ename">Enemy</div>
-          <div class="bf-book" id="b-ebook"></div>
-          <div class="bf-hprow" id="b-enemy-hp">
-            <span class="bf-hp-label">HP</span>
-            <div class="bf-hp-track"><div class="bf-hp-fill" style="width:100%"></div></div>
-            <span class="bf-hp-num">??/??</span>
-          </div>
-        </div>
-        <div class="bf-enemy-sprite" id="b-enemy-wrap">
-          <span id="b-enemy-emoji">👾</span>
-        </div>
-        <div class="bf-player-sprite" id="b-player-wrap">
-          <span id="b-carl-emoji">🧑</span>
-          <span id="b-donut-emoji">🐱</span>
-        </div>
-        <div class="bf-player-info">
-          <div class="bf-charrow">
-            <span class="bf-cname">Carl</span>
-            <div class="bf-hprow" id="b-carl-hp">
-              <div class="bf-hp-track"><div class="bf-hp-fill" style="width:100%"></div></div>
-              <span class="bf-hp-num">80/80</span>
-            </div>
-          </div>
-          <div class="bf-charrow">
-            <span class="bf-cname">Donut</span>
-            <div class="bf-hprow" id="b-donut-hp">
-              <div class="bf-hp-track"><div class="bf-hp-fill donut" style="width:100%"></div></div>
-              <span class="bf-hp-num">45/45</span>
-            </div>
-          </div>
-        </div>
-      </div><!-- /battle-field -->
-
-      <!-- Dialogue / moves box -->
-      <div class="battle-dialogue">
-        <div id="b-text">A wild enemy appeared!</div>
-        <div id="b-moves" style="display:none">
-          <button class="b-move-btn" id="b-btn-attack" onclick="battleAction('attack')">⚔️ Attack</button>
-          <button class="b-move-btn" id="b-btn-donut"  onclick="battleAction('donut')">🐾 Paw of Justice</button>
-          <button class="b-move-btn" id="b-btn-item"   onclick="battleAction('item')">🎒 Items</button>
-          <button class="b-move-btn" id="b-btn-run"    onclick="battleAction('run')">🏃 Run</button>
-        </div>
+      <!-- Achievement popup (overlaid on canvas) -->
+      <div id="achievement-popup" class="achievement-off">
+        <div class="ach-label">⚡ NEW ACHIEVEMENT!! ⚡</div>
+        <div class="ach-name" id="ach-name"></div>
+        <div class="ach-desc" id="ach-desc"></div>
       </div>
 
-    </div><!-- /battle-wrap -->
+      <!-- Quip bar -->
+      <div id="quip-bar" class="quip-off" id="quip-bar"></div>
+    </div>
+
+    <!-- Mobile d-pad -->
+    <div id="mobile-controls">
+      <button class="mb-btn" id="mb-left"  aria-label="Left">◀</button>
+      <button class="mb-btn mb-blink" id="mb-blink" aria-label="Blink">✨</button>
+      <button class="mb-btn" id="mb-right" aria-label="Right">▶</button>
+    </div>
   </div>
 
-  <!-- ── SHOP ──────────────────────────────────────────────────────────────── -->
-  <div id="screen-shop" class="hh-screen">
-    <div class="hh-title-card" style="padding:1.5rem">
-      <div class="hh-title" style="font-size:1.4rem">⚗️ The Travelling Merchant</div>
-      <div class="hh-subtitle">Spend wisely — the boss doesn't take IOUs.</div>
-      <div class="shop-wrap">
-        <div class="shop-info">Gold: 💰 <strong id="shop-gold">0</strong>
-          &nbsp;·&nbsp; Items: <span id="shop-inv-count">0</span>/3</div>
-        <div class="shop-grid" id="shop-grid"></div>
-        <div class="shop-actions">
-          <button class="hh-btn-primary" onclick="leaveShop()"
-                  style="padding:0.5rem 1.5rem;font-size:0.85rem">Continue ➡️</button>
-        </div>
+  <!-- ── DEATH ──────────────────────────────────────────────────────────────── -->
+  <div id="screen-death" class="pd-screen">
+    <div class="pd-card">
+      <div class="pd-floor-banner danger-banner">☠ CRAWLER ELIMINATED ☠</div>
+      <div class="pd-title death-red">YOU HAVE DIED</div>
+      <div class="pd-art">💀🐱</div>
+      <div id="death-system-quip" class="pd-system-lore"></div>
+      <div id="death-donut-quip" class="death-donut-quip"></div>
+      <div class="death-stats">
+        <div>Score <strong id="d-score">0</strong></div>
+        <div>Wave <strong id="d-wave">1</strong></div>
+        <div>Time <strong id="d-time">0s</strong></div>
+      </div>
+      <div class="name-entry">
+        <label for="player-name">Enter your name for the Hall of Records:</label>
+        <input type="text" id="player-name" maxlength="24" placeholder="Crawler name…" autocomplete="off" />
+        <button class="pd-btn-primary" onclick="Game.submitScore()">Submit to the System</button>
+      </div>
+      <div class="pd-btn-row" style="margin-top:0.75rem">
+        <button class="pd-btn-secondary" onclick="Game.start()">Try Again</button>
+        <button class="pd-btn-secondary" onclick="Game.showLeaderboard()">📜 Hall of Records</button>
       </div>
     </div>
   </div>
 
-  <!-- ── DEATH ─────────────────────────────────────────────────────────────── -->
-  <div id="screen-death" class="hh-screen">
-    <div class="hh-title-card">
-      <div class="hh-end-title" style="color:#c03030">You Fainted</div>
-      <div class="hh-art">💀🐱</div>
-      <p class="hh-end-msg" id="death-msg">Carl has fainted...</p>
-      <button class="hh-btn-primary" onclick="startGame()">Try Again</button>
+  <!-- ── LEADERBOARD ────────────────────────────────────────────────────────── -->
+  <div id="screen-leaderboard" class="pd-screen">
+    <div class="pd-card">
+      <div class="pd-floor-banner">📜 HALL OF RECORDS 📜</div>
+      <div class="pd-title">Top Survivors</div>
+      <div class="pd-subtitle">The System judges all crawlers equally. Poorly.</div>
+      <div class="lb-wrap">
+        <table class="lb-table">
+          <thead>
+            <tr><th>#</th><th>Name</th><th>Score</th><th>Wave</th><th>Time</th></tr>
+          </thead>
+          <tbody id="lb-body">
+            <tr><td colspan="5" class="lb-loading">Loading…</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="pd-btn-row" style="margin-top:1.5rem">
+        <button class="pd-btn-primary" onclick="Game.start()">Play Again</button>
+        <button class="pd-btn-secondary" onclick="Game.showScreen('intro')">Back</button>
+      </div>
     </div>
   </div>
 
-  <!-- ── WIN ───────────────────────────────────────────────────────────────── -->
-  <div id="screen-win" class="hh-screen">
-    <div class="hh-title-card">
-      <div class="hh-end-title" style="color:#b8860b">Victory!</div>
-      <div class="hh-art">🏆🧑🐱</div>
-      <p class="hh-end-msg" id="win-msg">Carl and Donut conquered the dungeon!</p>
-      <button class="hh-btn-primary" onclick="startGame()">Play Again</button>
-    </div>
-  </div>
-
-</div><!-- /hh-wrap -->
+</div><!-- /game-wrap -->
 {% endblock %}
 
 {% block extra_scripts %}

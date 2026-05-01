@@ -1,785 +1,913 @@
 "use strict";
+// ── Princess Donut's Dungeon Defense ─────────────────────────────────────────
 
-// ─── Constants ────────────────────────────────────────────────────────────────
+const CW = 560, CH = 680, HUD_H = 48;
+const GROUND_Y = CH - 60;
 
-const CANVAS_H  = 300;
-const GROUND_Y  = 262;   // top of ground platform
-const GRAVITY   = 0.58;
-const JUMP_VY   = -12.5;
-const MOVE_SPD  = 4;
-const WORLD_W   = 2400;
-
-// Ground + elevated platforms
-const PLATFORMS = [
-  { x: 0,    y: GROUND_Y, w: WORLD_W, h: 38 }, // continuous ground
-  { x: 310,  y: 208, w: 140, h: 14 },
-  { x: 640,  y: 190, w: 120, h: 14 },
-  { x: 940,  y: 205, w: 130, h: 14 },
-  { x: 1270, y: 183, w: 140, h: 14 },
-  { x: 1590, y: 198, w: 120, h: 14 },
-  { x: 1880, y: 210, w: 130, h: 14 },
+// ── Enemy definitions ─────────────────────────────────────────────────────────
+const ENEMY_DEFS = [
+  { id:'kobold',    name:'Kobold',            emoji:'🐉', hp:2,  pts:10, spd:1.0, shoots:false },
+  { id:'goblin',    name:'Goblin Bomb Bard',  emoji:'💣', hp:3,  pts:15, spd:1.1, shoots:true  },
+  { id:'dire_rat',  name:'Dire Rat',          emoji:'🐀', hp:2,  pts:12, spd:1.8, shoots:false },
+  { id:'hob',       name:'Hob',               emoji:'👺', hp:4,  pts:20, spd:0.9, shoots:true  },
+  { id:'dingo',     name:'Danger Dingo',      emoji:'🐕', hp:3,  pts:18, spd:1.5, shoots:false },
+  { id:'tuskling',  name:'Tuskling',          emoji:'🐗', hp:6,  pts:35, spd:0.7, shoots:true  },
+  { id:'skeleton',  name:'Skeleton Warrior',  emoji:'💀', hp:5,  pts:30, spd:0.8, shoots:true  },
+  { id:'box_troll', name:'Box Troll',         emoji:'📦', hp:8,  pts:50, spd:0.5, shoots:false, dropPU:true },
+  { id:'crawler',   name:'Crawlersworn',      emoji:'🤖', hp:10, pts:75, spd:1.0, shoots:true  },
 ];
 
-const CARL_EMOJI  = "🧑";
-const DONUT_EMOJI = "🐱";
-
-// Gold coins scattered across the world
-const COIN_XS = [130, 370, 680, 950, 1180, 1450, 1700, 1960, 2080];
-
-// System flavor text (à la Dungeon Crawler Carl's AI announcer)
-const SYSTEM_QUIPS = [
-  "The System: Achievement Unlocked: MONSTER SLAYER.",
-  "The System: 15 gold coins deposited to your account. Enjoy.",
-  "Donut: That's what happens when you challenge the princess's companion.",
-  "The System: Your patron has taken notice. They're mildly impressed.",
-  "Donut: Carl, I'm beginning to respect you. Only beginning.",
-  "The System: Witness the power of a man and his cat.",
-  "Donut: Excellent. You may pet me later as a reward.",
-  "The System: Floor clear progress updated. Keep moving, crawler.",
-  "The System: New record. The viewing audience approves.",
-  "Donut: I could have done that faster, for the record.",
+const BOSS_DEFS = [
+  { id:'formidable', name:'The Formidable', emoji:'👾', hp:80,  pts:400, spd:0.6, shoots:true, isBoss:true },
+  { id:'empress',    name:'Skull Empress',  emoji:'💀', hp:120, pts:600, spd:0.5, shoots:true, isBoss:true },
 ];
 
-// Monsters pulled from the Dungeon Crawler Carl universe
-const ENEMY_TYPES = [
-  { name: "Bopca",             emoji: "🐸", maxHp: 16, atk: [3,6],  gold: [2,5]  },
-  { name: "Hob",               emoji: "👺", maxHp: 20, atk: [4,7],  gold: [2,5]  },
-  { name: "Dire Rat",          emoji: "🐀", maxHp: 18, atk: [4,7],  gold: [2,5]  },
-  { name: "Skeleton Warrior",  emoji: "💀", maxHp: 22, atk: [5,8],  gold: [3,6]  },
-  { name: "Box Troll",         emoji: "📦", maxHp: 28, atk: [5,9],  gold: [3,7]  },
-  { name: "Crawlersworn",      emoji: "🤖", maxHp: 24, atk: [5,9],  gold: [3,7]  },
+// ── Power-up definitions (all from DCC books) ─────────────────────────────────
+const POWERUP_DEFS = [
+  {
+    id:'tome', name:'Tome of Magic Missile', emoji:'✨',
+    achievement:'TOME OF MAGIC MISSILE',
+    desc:"Donut's missiles deal double damage!",
+    apply(gs){ gs.player.bulletDmg = Math.min(gs.player.bulletDmg + 1, 4); }
+  },
+  {
+    id:'shell', name:'Protective Shell', emoji:'🛡️',
+    achievement:'PROTECTIVE SHELL',
+    desc:'Magical barrier absorbs one hit!',
+    apply(gs){ gs.player.shield = true; }
+  },
+  {
+    id:'haste', name:'Haste Potion', emoji:'💨',
+    achievement:'HASTE POTION',
+    desc:'Donut moves at ludicrous speed for 8 seconds!',
+    apply(gs){ gs.player.hasteEnd = gs.elapsed + 8000; }
+  },
+  {
+    id:'tiara', name:"Princess's Tiara Power", emoji:'👑',
+    achievement:"PRINCESS'S TIARA POWER",
+    desc:'Triple Magic Missile shot!',
+    apply(gs){ gs.player.tripleShot = true; }
+  },
+  {
+    id:'satchel', name:'Satchel of Holding', emoji:'💼',
+    achievement:'SATCHEL OF HOLDING',
+    desc:'Extra life stored in an extra-dimensional pocket!',
+    apply(gs){ gs.player.lives = Math.min(gs.player.lives + 1, 5); }
+  },
+  {
+    id:'blink', name:'Blink Dog Charm', emoji:'🐕',
+    achievement:'BLINK DOG CHARM',
+    desc:'Press SPACE to blink to the opposite side!',
+    apply(gs){ gs.player.blinks++; }
+  },
+  {
+    id:'biscuit', name:'Enhanced Pet Biscuit', emoji:'🍪',
+    achievement:'ENHANCED PET BISCUIT',
+    desc:'5 seconds of full invincibility — Donut is UNSTOPPABLE!',
+    apply(gs){ gs.player.invEnd = Math.max(gs.player.invEnd, gs.elapsed + 5000); }
+  },
+  {
+    id:'mana_toast', name:'Mana Toast', emoji:'🍞',
+    achievement:'MANA TOAST',
+    desc:'Rapid-fire mode! Fire rate tripled for 10 seconds!',
+    apply(gs){ gs.player.rapidEnd = gs.elapsed + 10000; }
+  },
 ];
 
-const DEFAULT_BOSS = {
-  name: "The Skull Empress", emoji: "💀",
-  book: null, flavor: null,
-  maxHp: 65, atk: [9,15], gold: [20,30],
-  special: { name: "Death Knell", atk: [14,20], chance: 0.20 },
+// ── Quips ─────────────────────────────────────────────────────────────────────
+const SYSTEM_QUIPS = {
+  kill: [
+    "The System: Mob eliminated. Gold deposited. The dungeon remains indifferent to your survival.",
+    "The System: Kill confirmed. For context, this unit previously exploded a tourist in a gift shop.",
+    "The System: 4.7 billion viewers are watching. Statistically, most are rooting against you.",
+    "The System: That mob had aspirations. Past tense now.",
+    "The System: Your patron has taken notice. They are 'mildly not disgusted.' High praise.",
+  ],
+  wave: [
+    "The System: Wave cleared. Survival odds revised upward by 0.3%. Try not to celebrate.",
+    "The System: All mobs eliminated. The next wave will be worse. This is not a threat. It is a fact.",
+    "The System: Wave complete. The dungeon offers its grudging acknowledgment. Just kidding.",
+    "The System: Congratulations on surviving. The System did not have you in the betting pool.",
+  ],
+  hit: [
+    "The System: Damage taken. The audience response is overwhelmingly 'lol'.",
+    "The System: HP reduced. Noted. Moving on.",
+    "The System: You've been hit. It's fine. Probably.",
+  ],
+  powerup: [
+    "The System: Item acquired. Please don't die immediately after. For the ratings.",
+    "The System: Power-up collected. Odds improved by a statistically irrelevant margin.",
+    "The System: Oh. You found something. The System is cautiously optimistic. Briefly.",
+  ],
+  lowHP: [
+    "The System: CRITICAL HEALTH WARNING. Betting pools updated. Not in your favor.",
+    "The System: You are nearly dead. The audience is standing. This is the most exciting part.",
+    "The System: One hit remaining. The System has flagged this as 'your problem.'",
+  ],
+  boss: [
+    "The System: Boss entity detected. Survival probability has been redacted for your comfort.",
+    "The System: A floor boss has appeared. It was specifically designed to end you.",
+    "The System: Boss wave initiated. The System formally distances itself from whatever happens next.",
+  ],
 };
 
-const SHOP_DATA = [
-  { id: "hpotion",    name: "Health Potion",   emoji: "🧪", desc: "+40 HP (Carl)",   cost: 8  },
-  { id: "dirtyshirl", name: "Dirty Shirley's", emoji: "🍹", desc: "+25 HP (Donut)",  cost: 6  },
-  { id: "sword",      name: "Shiv Upgrade",    emoji: "⚔️",  desc: "Carl +4 ATK",    cost: 10 },
-  { id: "catnip",     name: "Catnip",          emoji: "🌿", desc: "Donut ATK ×2",    cost: 7  },
-  { id: "shield",     name: "Bottle Shield",   emoji: "🛡️",  desc: "Block 1 hit",    cost: 8  },
+const DONUT_QUIPS = {
+  kill: [
+    "Donut: 'Darling, you don't stand a CHANCE against me.'",
+    "Donut: 'Carl would have died in wave one. That's just facts.'",
+    "Donut: 'Another one? I've barely warmed up my eye-lasers.'",
+    "Donut: 'Do you know how expensive this tiara is? BACK. OFF.'",
+    "Donut: 'Every kill is a highlight reel moment. The cameras love me.'",
+  ],
+  hit: [
+    "Donut: 'HOW DARE YOU touch the princess!'",
+    "Donut: 'That was my GOOD side, you absolute trash mob!'",
+    "Donut: 'I will REMEMBER this insult. In detail.'",
+    "Donut: 'This is going in my formal complaint to the Borant Corporation.'",
+  ],
+  powerup: [
+    "Donut: 'Ooh! A new accessory! It's MINE now, obviously.'",
+    "Donut: 'Everything in this dungeon belongs to me. Including that.'",
+    "Donut: 'Finally, something worthy of my stature.'",
+  ],
+  wave: [
+    "Donut: 'Is that ALL you've got? I'm getting BORED.'",
+    "Donut: 'Next wave better be more of a challenge. This is embarrassing.'",
+    "Donut: 'Wave cleared! Make sure the cameras got my good angle.'",
+  ],
+  death: [
+    "This is obviously Carl's fault somehow. I'm filing a formal complaint.",
+    "I'm not dead. I'm dramatically incapacitated. There is a difference.",
+    "My fanbase will NOT be pleased. Someone is getting a very withering look.",
+    "Tell Carl I died beautifully. With my tiara on. This is important.",
+    "I demand a recount. Also a resurrection. Also a snack.",
+  ],
+};
+
+const DEATH_SYSTEM_QUIPS = [
+  "The System: Crawler eliminated. The dungeon thanks you for your contribution.",
+  "The System: Survival odds were 12%. You underperformed expectations.",
+  "The System: Cause of death logged. It will air on Dungeon Crawler World: Earth next Tuesday.",
+  "The System: The princess has fallen. Viewing audience gave it 4.7 stars.",
+  "The System: Game over. The System has seen worse. The System has also caused worse.",
 ];
 
-// ─── State ────────────────────────────────────────────────────────────────────
+// ── Utility ───────────────────────────────────────────────────────────────────
+function pick(arr){ return arr[Math.floor(Math.random() * arr.length)]; }
 
-let GS = {};
-let canvas, ctx, animId;
-let loadedBossData = null;
-let hudMsg = { text: "", ttl: 0 };
-let battleGraceTtl = 0;  // frames of post-battle immunity
-const KEYS = {};
+// ── Game object ───────────────────────────────────────────────────────────────
+const Game = {
+  canvas: null, ctx: null, animId: null, lastTs: 0,
+  gs: null,
 
-document.addEventListener("keydown", e => {
-  KEYS[e.key] = true;
-  if (["ArrowUp","ArrowDown"," "].includes(e.key)) e.preventDefault();
-});
-document.addEventListener("keyup", e => { KEYS[e.key] = false; });
+  // ── Init ──────────────────────────────────────────────────────────────────
+  init() {
+    this.canvas = document.getElementById('game-canvas');
+    this.canvas.width  = CW;
+    this.canvas.height = CH;
+    this.ctx = this.canvas.getContext('2d');
+    this._bindInput();
+    this._bindMobile();
+  },
 
-function newState() {
-  const boss  = loadedBossData || DEFAULT_BOSS;
-  const picks = shuffle([...ENEMY_TYPES]).slice(0, 3);
-  const exs   = [450, 1020, 1580];
-  return {
-    gold: 5,
-    inventory: [],
-    carl: {
-      x: 80, y: GROUND_Y - 32, vx: 0, vy: 0,
-      w: 28, h: 32, onGround: false, facingRight: true,
-      hp: 80, maxHp: 80, atkBase: [12,18], atkBonus: 0, shielded: false,
-    },
-    donut: { hp: 45, maxHp: 45, cooldown: 0, buffed: false },
-    cam: { x: 0 },
-    xp: 0, level: 1,
-    coins: COIN_XS.map(x => ({ x, y: GROUND_Y - 22, w: 18, h: 18, collected: false })),
-    shrine: { x: 1100, y: GROUND_Y - 40, w: 32, h: 40, used: false },
-    dramaTxt: { text: "", ttl: 0 },
-    enemies: picks.map((t, i) => ({
-      ...t, hp: t.maxHp,
-      x: exs[i], y: GROUND_Y - 32,
-      w: 32, h: 32,
-      vx: (i % 2 === 0 ? 1.5 : -1.5),
-      defeated: false,
-    })),
-    boss: {
-      ...boss, hp: boss.maxHp,
-      x: WORLD_W - 280, y: GROUND_Y - 58,
-      w: 48, h: 58, unlocked: false, defeated: false,
-    },
-    battle: null,
-  };
-}
+  // ── Screens ───────────────────────────────────────────────────────────────
+  showScreen(id) {
+    document.querySelectorAll('.pd-screen').forEach(s => s.classList.remove('active'));
+    document.getElementById('screen-' + id).classList.add('active');
+  },
 
-// ─── Utilities ────────────────────────────────────────────────────────────────
+  // ── New game state ────────────────────────────────────────────────────────
+  newGs() {
+    return {
+      player: {
+        x: CW / 2, y: GROUND_Y,
+        w: 44, h: 44,
+        lives: 3,
+        shield: false, tripleShot: false, blinks: 0,
+        bulletDmg: 1,
+        hasteEnd: 0, rapidEnd: 0, invEnd: 0,
+        lastFired: 0, invFrames: 0,
+        speed: 5,
+      },
+      bullets: [],       // {x,y,dmg}
+      eBullets: [],      // {x,y}
+      enemies: [],       // see spawnWave
+      powerups: [],      // {x,y,def,vy}
+      particles: [],     // {x,y,vx,vy,life,maxLife,txt,col}
+      formation: { x:0, dx:1 },
+      wave: 0,
+      waveState: 'between', // 'between'|'active'|'boss_entry'
+      waveDelay: 0,
+      score: 0,
+      elapsed: 0,        // ms total played
+      keys: {},
+      quip: { text:'', end:0 },
+      achiev: { text:'', desc:'', end:0 },
+      killStreak: 0,
+      lowHpQuipped: false,
+    };
+  },
 
-function rand(a, b)     { return Math.floor(Math.random() * (b - a + 1)) + a; }
-function clamp(v, a, b) { return Math.max(a, Math.min(b, v)); }
-function delay(ms)      { return new Promise(r => setTimeout(r, ms)); }
-function shuffle(arr) {
-  for (let i = arr.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [arr[i], arr[j]] = [arr[j], arr[i]];
-  }
-  return arr;
-}
-function aabb(a, b) {
-  return a.x < b.x + b.w && a.x + a.w > b.x &&
-         a.y < b.y + b.h && a.y + a.h > b.y;
-}
-function resizeCanvas() {
-  canvas.width = Math.min(canvas.parentElement.clientWidth - 4, 700);
-}
-function showScreen(id) {
-  document.querySelectorAll(".hh-screen").forEach(s => s.classList.remove("active"));
-  document.getElementById(id).classList.add("active");
-}
+  // ── Start / restart ───────────────────────────────────────────────────────
+  start() {
+    if (this.animId) cancelAnimationFrame(this.animId);
+    this.gs = this.newGs();
+    this.showScreen('game');
+    this.lastTs = 0;
+    this._hideQuip(); this._hideAchiev();
+    this.loop(0);
+  },
 
-// ─── Overworld physics ────────────────────────────────────────────────────────
+  // ── Main loop ─────────────────────────────────────────────────────────────
+  loop(ts) {
+    const dt = Math.min(ts - (this.lastTs || ts), 50);
+    this.lastTs = ts;
+    this.gs.elapsed += dt;
+    this.update(dt);
+    this.render();
+    this.animId = requestAnimationFrame(t => this.loop(t));
+  },
 
-function physicsStep() {
-  const c = GS.carl;
-
-  c.vx = 0;
-  if (KEYS["ArrowLeft"]  || KEYS["a"]) { c.vx = -MOVE_SPD; c.facingRight = false; }
-  if (KEYS["ArrowRight"] || KEYS["d"]) { c.vx =  MOVE_SPD; c.facingRight = true;  }
-
-  if ((KEYS["ArrowUp"] || KEYS["w"] || KEYS[" "]) && c.onGround) {
-    c.vy = JUMP_VY; c.onGround = false;
-  }
-
-  c.vy = Math.min(c.vy + GRAVITY, 18);
-  c.x  = clamp(c.x + c.vx, 0, WORLD_W - c.w);
-  c.y += c.vy;
-  c.onGround = false;
-
-  for (const p of PLATFORMS) {
-    const xOverlap = c.x + c.w > p.x && c.x < p.x + p.w;
-    if (xOverlap && c.vy >= 0 && c.y + c.h >= p.y && c.y + c.h <= p.y + p.h + c.vy + 2) {
-      c.y = p.y - c.h; c.vy = 0; c.onGround = true;
+  // ── Input ─────────────────────────────────────────────────────────────────
+  _bindInput() {
+    document.addEventListener('keydown', e => {
+      if (!this.gs) return;
+      this.gs.keys[e.key] = true;
+      if (e.key === ' ') { e.preventDefault(); this._doBlink(); }
+    });
+    document.addEventListener('keyup', e => {
+      if (this.gs) this.gs.keys[e.key] = false;
+    });
+  },
+  _bindMobile() {
+    const hold = (id, key) => {
+      const el = document.getElementById(id);
+      if (!el) return;
+      el.addEventListener('pointerdown', e => { e.preventDefault(); if (this.gs) this.gs.keys[key] = true; });
+      el.addEventListener('pointerup',   () => { if (this.gs) this.gs.keys[key] = false; });
+      el.addEventListener('pointerleave',() => { if (this.gs) this.gs.keys[key] = false; });
+    };
+    hold('mb-left',  'ArrowLeft');
+    hold('mb-right', 'ArrowRight');
+    document.getElementById('mb-blink').addEventListener('pointerdown', e => {
+      e.preventDefault(); this._doBlink();
+    });
+  },
+  _doBlink() {
+    const gs = this.gs;
+    if (!gs || gs.waveState !== 'active') return;
+    if (gs.player.blinks > 0) {
+      gs.player.blinks--;
+      gs.player.x = (gs.player.x < CW / 2) ? CW - 50 : 50;
     }
-  }
+  },
 
-  // Camera
-  const vw   = canvas.width;
-  GS.cam.x   = clamp(c.x - vw / 2 + c.w / 2, 0, WORLD_W - vw);
+  // ── Update ────────────────────────────────────────────────────────────────
+  update(dt) {
+    const gs = this.gs;
 
-  // Enemies patrol on ground
-  for (const e of GS.enemies) {
-    if (e.defeated) continue;
-    e.x += e.vx;
-    if (e.x < 20 || e.x + e.w > WORLD_W - 20) e.vx *= -1;
-  }
-}
-
-// ─── Overworld rendering ──────────────────────────────────────────────────────
-
-function drawOverworld() {
-  const { cam, carl, enemies, boss } = GS;
-  const cx = cam.x;
-  const W  = canvas.width;
-  const H  = CANVAS_H;
-
-  // Sky → dungeon gradient
-  const sky = ctx.createLinearGradient(0, 0, 0, H);
-  sky.addColorStop(0, "#08040e");
-  sky.addColorStop(1, "#1a0a28");
-  ctx.fillStyle = sky;
-  ctx.fillRect(0, 0, W, H);
-
-  // Platforms
-  for (const p of PLATFORMS) {
-    const px = p.x - cx;
-    if (px + p.w < 0 || px > W) continue;
-    if (p.y >= GROUND_Y) {
-      ctx.fillStyle = "#261a36"; ctx.fillRect(px, p.y, p.w, p.h);
-      ctx.fillStyle = "#503870"; ctx.fillRect(px, p.y, p.w, 4);
-    } else {
-      ctx.fillStyle = "#3d2010"; ctx.fillRect(px, p.y, p.w, p.h);
-      ctx.fillStyle = "#7a5020"; ctx.fillRect(px, p.y, p.w, 3);
-    }
-  }
-
-  // Boss door
-  if (!boss.defeated) {
-    const bx = boss.x - cx;
-    if (bx + boss.w > 0 && bx < W) {
-      ctx.fillStyle = boss.unlocked ? "#7a5800" : "#2a2a2a";
-      ctx.fillRect(bx, boss.y, boss.w, boss.h);
-      ctx.font = "32px serif"; ctx.textAlign = "center";
-      ctx.fillText(boss.unlocked ? "🚪" : "🔒", bx + boss.w / 2, boss.y + 44);
-    }
-  }
-
-  // Enemies + mini HP bar
-  ctx.font = "28px serif"; ctx.textAlign = "center";
-  for (const e of enemies) {
-    if (e.defeated) continue;
-    const ex = e.x - cx;
-    if (ex + e.w < 0 || ex > W) continue;
-    ctx.fillText(e.emoji, ex + e.w / 2, e.y + e.h - 2);
-    const pct = e.hp / e.maxHp;
-    ctx.fillStyle = "#333"; ctx.fillRect(ex, e.y - 9, e.w, 5);
-    ctx.fillStyle = pct > 0.5 ? "#4a4" : pct > 0.25 ? "#a84" : "#a33";
-    ctx.fillRect(ex, e.y - 9, e.w * pct, 5);
-  }
-
-  // Coins
-  ctx.font = "16px serif"; ctx.textAlign = "center";
-  for (const c of GS.coins) {
-    if (c.collected) continue;
-    const ccx = c.x - cx;
-    if (ccx < -20 || ccx > W + 20) continue;
-    ctx.fillText("🪙", ccx + c.w / 2, c.y + c.h - 2);
-  }
-
-  // Healing shrine (Safe Room)
-  const sh = GS.shrine;
-  const shx = sh.x - cx;
-  if (shx > -40 && shx < W + 40) {
-    ctx.font = "28px serif"; ctx.textAlign = "center";
-    ctx.fillText(sh.used ? "⬛" : "⛩️", shx + sh.w / 2, sh.y + sh.h - 4);
-    if (!sh.used) {
-      ctx.fillStyle = "rgba(100,255,180,0.7)";
-      ctx.font = "9px 'Courier New', monospace";
-      ctx.fillText("SAFE ROOM", shx + sh.w / 2, sh.y - 4);
-    }
-  }
-
-  // Carl
-  const csx = carl.x - cx;
-  ctx.save();
-  ctx.font = "28px serif"; ctx.textAlign = "center";
-  if (!carl.facingRight) {
-    ctx.translate(csx + carl.w / 2, 0);
-    ctx.scale(-1, 1);
-    ctx.fillText(CARL_EMOJI, 0, carl.y + carl.h - 2);
-  } else {
-    ctx.fillText(CARL_EMOJI, csx + carl.w / 2, carl.y + carl.h - 2);
-  }
-  ctx.restore();
-
-  // Donut follows Carl
-  ctx.font = "20px serif"; ctx.textAlign = "center";
-  const donutOffX = carl.facingRight ? -20 : carl.w + 4;
-  ctx.fillText(DONUT_EMOJI, csx + donutOffX + 10, carl.y + carl.h - 2);
-
-  // HUD strip
-  ctx.fillStyle = "rgba(0,0,0,0.6)";
-  ctx.fillRect(0, 0, W, 26);
-  ctx.fillStyle = "#c8a030";
-  ctx.font = "11px 'Courier New', monospace";
-  ctx.textAlign = "left";
-  ctx.fillText(`Carl ${Math.max(0, carl.hp)}/${carl.maxHp} HP  Lv${GS.level}`, 6, 17);
-  ctx.fillText(`Donut ${Math.max(0, GS.donut.hp)}/${GS.donut.maxHp} HP`, 190, 17);
-  ctx.textAlign = "right";
-  ctx.fillText(`💰 ${GS.gold}`, W - 6, 17);
-  const rem = enemies.filter(e => !e.defeated).length;
-  ctx.textAlign = "center";
-  if (!boss.unlocked) {
-    ctx.fillStyle = "#a090b0";
-    ctx.fillText(`Enemies: ${rem}/3`, W / 2, 17);
-  } else if (!boss.defeated) {
-    ctx.fillStyle = "#ff5050";
-    ctx.fillText("⚠ BOSS UNLOCKED →", W / 2, 17);
-  }
-
-  // HUD message (warnings)
-  if (hudMsg.ttl > 0) {
-    hudMsg.ttl--;
-    ctx.fillStyle = "rgba(200,50,50,0.92)";
-    ctx.font = "bold 13px 'Courier New', monospace";
-    ctx.textAlign = "center";
-    ctx.fillText(hudMsg.text, W / 2, 54);
-  }
-
-  // Drama text overlay (level up, crits, etc.)
-  if (GS.dramaTxt.ttl > 0) {
-    const alpha = Math.min(1, GS.dramaTxt.ttl / 25);
-    ctx.globalAlpha = alpha;
-    ctx.font = "bold 20px 'Courier New', monospace";
-    ctx.textAlign = "center";
-    ctx.fillStyle = "#ffe040";
-    ctx.strokeStyle = "#000";
-    ctx.lineWidth = 3;
-    ctx.strokeText(GS.dramaTxt.text, W / 2, H / 2 - 20);
-    ctx.fillText(GS.dramaTxt.text, W / 2, H / 2 - 20);
-    ctx.globalAlpha = 1;
-    GS.dramaTxt.ttl--;
-  }
-}
-
-// ─── Overworld tick ───────────────────────────────────────────────────────────
-
-function overworldTick() {
-  if (!GS.battle) physicsStep();
-  drawOverworld();
-  checkEncounters();
-  animId = requestAnimationFrame(overworldTick);
-}
-
-function checkEncounters() {
-  if (GS.battle) return;
-
-  // Collect coins
-  for (const c of GS.coins) {
-    if (!c.collected && aabb(GS.carl, c)) {
-      c.collected = true;
-      const g = rand(2, 5);
-      GS.gold += g;
-      hudMsg = { text: `+${g} 💰`, ttl: 70 };
-    }
-  }
-
-  // Healing shrine (Safe Room)
-  const sh = GS.shrine;
-  if (!sh.used && aabb(GS.carl, sh)) {
-    sh.used = true;
-    const heal = 25;
-    GS.carl.hp = Math.min(GS.carl.maxHp, GS.carl.hp + heal);
-    GS.donut.hp = Math.min(GS.donut.maxHp, GS.donut.hp + 15);
-    GS.dramaTxt = { text: `SAFE ROOM: Carl +${heal} HP, Donut +15 HP`, ttl: 120 };
-  }
-
-  if (battleGraceTtl > 0) { battleGraceTtl--; return; }
-  const carl = GS.carl;
-  for (const e of GS.enemies) {
-    if (!e.defeated && aabb(carl, e)) { triggerBattle(e, false); return; }
-  }
-  const b = GS.boss;
-  if (!b.defeated && b.unlocked && aabb(carl, b)) { triggerBattle(b, true); return; }
-  if (!b.unlocked && !b.defeated && aabb(carl, b)) {
-    GS.carl.x += GS.carl.facingRight ? -50 : 50;
-    GS.carl.x  = clamp(GS.carl.x, 0, WORLD_W - GS.carl.w);
-    hudMsg = { text: "Defeat all 3 enemies first!", ttl: 130 };
-  }
-  if (!b.unlocked && GS.enemies.every(e => e.defeated)) b.unlocked = true;
-}
-
-// ─── Battle: start ────────────────────────────────────────────────────────────
-
-function triggerBattle(enemy, isBoss) {
-  // Prevent re-triggering while transitioning
-  if (GS.battle) return;
-  GS.battle = { enemy, isBoss, busy: false, playerTurn: false, over: false, defending: false, enemyStunned: false };
-
-  // Push Carl away so he doesn't re-trigger on return
-  GS.carl.x += GS.carl.facingRight ? -60 : 60;
-  GS.carl.x  = clamp(GS.carl.x, 0, WORLD_W - GS.carl.w);
-
-  showScreen("screen-battle");
-  renderBattleField();
-  setBattleText(`A wild ${enemy.name} appeared!`);
-  hideBattleMoves();
-  setTimeout(() => {
-    setBattleText("What will Carl do?");
-    showBattleMoves();
-  }, 1800);
-}
-
-// ─── Battle: UI helpers ───────────────────────────────────────────────────────
-
-function renderBattleField() {
-  const { enemy, isBoss } = GS.battle;
-  document.getElementById("b-ename").textContent       = enemy.name;
-  document.getElementById("b-enemy-emoji").textContent = enemy.emoji;
-  const bookEl = document.getElementById("b-ebook");
-  bookEl.textContent = (isBoss && enemy.book) ? `from "${enemy.book}"` : "";
-  bookEl.style.display = (isBoss && enemy.book) ? "" : "none";
-  updateBattleHpBars();
-}
-
-function updateBattleHpBars() {
-  setHpBar("b-enemy-hp", GS.battle.enemy.hp, GS.battle.enemy.maxHp, false);
-  setHpBar("b-carl-hp",  GS.carl.hp,         GS.carl.maxHp,         false);
-  setHpBar("b-donut-hp", GS.donut.hp,        GS.donut.maxHp,        true);
-}
-
-function setHpBar(id, hp, maxHp, isDonut) {
-  const el  = document.getElementById(id);
-  if (!el) return;
-  const bar = el.querySelector(".bf-hp-fill");
-  const num = el.querySelector(".bf-hp-num");
-  const pct = clamp(hp / maxHp, 0, 1);
-  if (bar) {
-    bar.style.width = `${(pct * 100).toFixed(1)}%`;
-    if (!isDonut) bar.style.background = pct > 0.5 ? "#50c050" : pct > 0.25 ? "#c09030" : "#c03030";
-  }
-  if (num) num.textContent = `${Math.max(0, hp)}/${maxHp}`;
-}
-
-function setBattleText(t) {
-  const el = document.getElementById("b-text");
-  if (el) el.textContent = t;
-}
-
-function showBattleMoves() {
-  resetMovesHTML();
-  document.getElementById("b-moves").style.display = "";
-  syncMoveButtons();
-}
-
-function hideBattleMoves() {
-  document.getElementById("b-moves").style.display = "none";
-}
-
-function syncMoveButtons() {
-  const dnt = document.getElementById("b-btn-donut");
-  if (dnt) {
-    dnt.disabled    = GS.donut.cooldown > 0 || GS.donut.hp <= 0;
-    dnt.textContent = GS.donut.cooldown > 0 ? `🐾 Paw of Justice (${GS.donut.cooldown})` : "🐾 Paw of Justice";
-  }
-  const itm = document.getElementById("b-btn-item");
-  if (itm) itm.disabled = GS.inventory.length === 0;
-}
-
-function resetMovesHTML() {
-  document.getElementById("b-moves").innerHTML = `
-    <button class="b-move-btn" id="b-btn-attack" onclick="battleAction('attack')">⚔️ Attack</button>
-    <button class="b-move-btn" id="b-btn-donut"  onclick="battleAction('donut')">🐾 Paw of Justice</button>
-    <button class="b-move-btn" id="b-btn-item"   onclick="battleAction('item')">🎒 Items</button>
-    <button class="b-move-btn" id="b-btn-run"    onclick="battleAction('run')">🏃 Run</button>`;
-}
-
-function shakeEl(id) {
-  const el = document.getElementById(id);
-  if (!el) return;
-  el.classList.remove("hh-shake");
-  void el.offsetWidth;
-  el.classList.add("hh-shake");
-  setTimeout(() => el.classList.remove("hh-shake"), 400);
-}
-
-// ─── Battle: player actions ───────────────────────────────────────────────────
-
-async function battleAction(type) {
-  const bt = GS.battle;
-  if (!bt || bt.busy || bt.over) return;
-  bt.busy = true;
-  hideBattleMoves();
-
-  if (type === "run") {
-    if (bt.isBoss) {
-      setBattleText("There's no escaping the boss!");
-      await delay(1500);
-      setBattleText("What will Carl do?");
-      showBattleMoves();
-      bt.busy = false;
+    // Wave state machine
+    if (gs.waveState === 'between') {
+      gs.waveDelay -= dt;
+      if (gs.waveDelay <= 0) this._spawnWave();
       return;
     }
-    if (Math.random() < 0.5) {
-      setBattleText("Carl got away safely!");
-      await delay(1400);
-      endBattle();
+    if (gs.waveState === 'active' && gs.enemies.length === 0) {
+      this._showQuip(pick(SYSTEM_QUIPS.wave), 3500);
+      setTimeout(() => this._showQuip(pick(DONUT_QUIPS.wave), 3000), 1800);
+      gs.waveState = 'between';
+      gs.waveDelay = 3200;
       return;
     }
-    setBattleText("Couldn't escape!");
-    await delay(1200);
-    await enemyTurn();
-    return;
-  }
 
-  if (type === "attack") {
-    const isCrit = Math.random() < 0.15;
-    const isStun = !isCrit && Math.random() < 0.12;
-    let dmgC = rand(...GS.carl.atkBase) + (GS.carl.atkBonus || 0);
-    if (isCrit) dmgC = Math.floor(dmgC * 1.85);
-    bt.enemy.hp -= dmgC;
-    if (isCrit) {
-      setBattleText(`Carl attacks for ${dmgC}! ★ CRITICAL HIT! ★`);
-    } else if (isStun) {
-      bt.enemyStunned = true;
-      setBattleText(`Carl attacks for ${dmgC}! ${bt.enemy.name} is stunned!`);
-    } else {
-      setBattleText(`Carl attacks for ${dmgC} damage!`);
+    this._updatePlayer(dt);
+    this._updateFormation(dt);
+    this._updateEnemies(dt);
+    this._updateBullets(dt);
+    this._updateEBullets(dt);
+    this._updatePowerups(dt);
+    this._updateParticles(dt);
+
+    // Low-HP warning once
+    if (!gs.lowHpQuipped && gs.player.lives === 1) {
+      gs.lowHpQuipped = true;
+      this._showQuip(pick(SYSTEM_QUIPS.lowHP), 3500);
     }
-    shakeEl("b-enemy-wrap");
+  },
 
-  } else if (type === "donut") {
-    const isCrit = Math.random() < 0.20;
-    let dmg = rand(14, 22);
-    if (GS.donut.buffed) { dmg = Math.floor(dmg * 2); GS.donut.buffed = false; }
-    if (isCrit) dmg = Math.floor(dmg * 1.85);
-    bt.enemy.hp      -= dmg;
-    GS.donut.cooldown = 3;
-    const suffix = isCrit ? " ★ CRITICAL! Princess Donut is displeased! ★" :
-                   dmg >= 28 ? " The System: IMPRESSIVE." : "";
-    setBattleText(`Princess Donut's Paw of Justice: ${dmg} damage!${suffix}`);
-    shakeEl("b-enemy-wrap");
+  // ── Player ────────────────────────────────────────────────────────────────
+  _updatePlayer(dt) {
+    const gs = this.gs, p = gs.player;
+    const spd = (gs.elapsed < p.hasteEnd) ? p.speed * 1.9 : p.speed;
+    if (gs.keys['ArrowLeft'] || gs.keys['a'] || gs.keys['A'])
+      p.x = Math.max(p.w/2, p.x - spd);
+    if (gs.keys['ArrowRight'] || gs.keys['d'] || gs.keys['D'])
+      p.x = Math.min(CW - p.w/2, p.x + spd);
 
-  } else if (type === "item") {
-    openItemPicker();
-    bt.busy = false;
-    return;
-  }
+    // Invincibility frames (flicker after hit)
+    if (p.invFrames > 0) p.invFrames -= dt;
 
-  updateBattleHpBars();
-  await delay(1000);
+    // Auto-fire
+    const rate = (gs.elapsed < p.rapidEnd) ? 120 : 280;
+    if (gs.elapsed - p.lastFired > rate) {
+      p.lastFired = gs.elapsed;
+      if (p.tripleShot) {
+        gs.bullets.push({x: p.x - 14, y: p.y - p.h/2, dmg: p.bulletDmg});
+        gs.bullets.push({x: p.x,      y: p.y - p.h/2, dmg: p.bulletDmg});
+        gs.bullets.push({x: p.x + 14, y: p.y - p.h/2, dmg: p.bulletDmg});
+      } else {
+        gs.bullets.push({x: p.x, y: p.y - p.h/2, dmg: p.bulletDmg});
+      }
+    }
+  },
 
-  if (bt.enemy.hp <= 0) { await onBattleWin(); return; }
-  await enemyTurn();
-}
+  // ── Formation movement ────────────────────────────────────────────────────
+  _updateFormation(dt) {
+    const gs = this.gs;
+    if (!gs.enemies.length) return;
+    const spd = this._formationSpeed();
+    gs.formation.x += gs.formation.dx * spd;
+    // Check edges via any enemy position
+    let minX = Infinity, maxX = -Infinity;
+    gs.enemies.forEach(e => { if (!e.diving){ minX = Math.min(minX,e.x); maxX = Math.max(maxX,e.x); }});
+    if (maxX + 26 > CW - 8 || minX - 26 < 8) {
+      gs.formation.dx *= -1;
+      // Drop formation down
+      gs.enemies.forEach(e => { if (!e.diving) e.formY = Math.min(e.formY + 18, CH - 180); });
+    }
+    // Apply formation dx to all non-diving enemies
+    gs.enemies.forEach(e => {
+      if (!e.diving) {
+        e.x += gs.formation.dx * spd;
+        // Lerp toward formation Y
+        e.y += (e.formY - e.y) * 0.04;
+      }
+    });
+  },
 
-// ─── Battle: enemy turn ───────────────────────────────────────────────────────
+  _formationSpeed() {
+    const gs = this.gs;
+    const alive = gs.enemies.filter(e => !e.diving).length;
+    const base = 0.8 + gs.wave * 0.15;
+    return base * (1 + (20 - Math.min(alive, 20)) * 0.05);
+  },
 
-async function enemyTurn() {
-  const bt = GS.battle;
-  const e  = bt.enemy;
-  let dmg;
+  // ── Enemy AI ──────────────────────────────────────────────────────────────
+  _updateEnemies(dt) {
+    const gs = this.gs;
+    gs.enemies.forEach(e => {
+      e.hitFlash = Math.max(0, (e.hitFlash || 0) - dt);
 
-  // Stunned — enemy misses this turn
-  if (bt.enemyStunned) {
-    bt.enemyStunned = false;
-    setBattleText(`${e.name} is stunned and loses their turn!`);
-    if (GS.donut.cooldown > 0) GS.donut.cooldown--;
-    await delay(1200);
-    setBattleText("What will Carl do?");
-    bt.busy = false;
-    showBattleMoves();
-    return;
-  }
-
-  if (e.special && Math.random() < e.special.chance) {
-    dmg = rand(...e.special.atk);
-    setBattleText(`${e.name} uses "${e.special.name}"!`);
-    await delay(900);
-  } else {
-    dmg = rand(...e.atk);
-  }
-
-  if (GS.carl.shielded) {
-    GS.carl.shielded = false;
-    setBattleText("🛡️ Carl's shield blocks the hit completely!");
-    dmg = 0;
-  } else if (bt.defending) {
-    dmg = Math.floor(dmg * 0.4);
-    setBattleText(`${e.name} attacks for ${dmg} (deflected)!`);
-  } else {
-    setBattleText(`${e.name} attacks Carl for ${dmg}!`);
-  }
-
-  if (dmg > 0) { GS.carl.hp -= dmg; shakeEl("b-player-wrap"); }
-  bt.defending = false;
-  if (GS.donut.cooldown > 0) GS.donut.cooldown--;
-
-  updateBattleHpBars();
-  await delay(1200);
-
-  if (GS.carl.hp <= 0) {
-    setBattleText("Carl fainted!");
-    await delay(1600);
-    document.getElementById("death-msg").textContent =
-      `Carl fainted against ${e.name}. Donut escaped through a ventilation shaft.`;
-    showScreen("screen-death");
-    GS.battle = null;
-    return;
-  }
-
-  setBattleText("What will Carl do?");
-  bt.busy = false;
-  showBattleMoves();
-}
-
-// ─── Battle: item picker ──────────────────────────────────────────────────────
-
-function openItemPicker() {
-  const movesEl = document.getElementById("b-moves");
-  const btns = GS.inventory.map((id, i) => {
-    const item = SHOP_DATA.find(s => s.id === id);
-    return `<button class="b-move-btn" onclick="useBattleItem(${i})">${item ? item.emoji : "?"} ${item ? item.name : id}</button>`;
-  }).join("");
-  movesEl.innerHTML = `${btns}<button class="b-move-btn" onclick="closeItemPicker()">← Back</button>`;
-  movesEl.style.display = "";
-}
-
-function closeItemPicker() { resetMovesHTML(); showBattleMoves(); GS.battle.busy = false; }
-
-async function useBattleItem(idx) {
-  const id = GS.inventory[idx];
-  if (!id) return;
-  GS.inventory.splice(idx, 1);
-  hideBattleMoves();
-  GS.battle.busy = true;
-
-  switch (id) {
-    case "hpotion":
-      GS.carl.hp = Math.min(GS.carl.maxHp, GS.carl.hp + 40);
-      setBattleText("Carl drinks a Health Potion! +40 HP");
-      break;
-    case "dirtyshirl":
-      GS.donut.hp = Math.min(GS.donut.maxHp, GS.donut.hp + 25);
-      setBattleText("Donut sips a Dirty Shirley's! +25 HP 🍹");
-      break;
-    case "sword":
-      GS.carl.atkBonus = (GS.carl.atkBonus || 0) + 4;
-      setBattleText(`Carl sharpens his blade! +4 ATK`);
-      break;
-    case "catnip":
-      GS.donut.buffed = true;
-      setBattleText("Donut sniffs catnip! Next Cat Strike ×2!");
-      break;
-    case "shield":
-      GS.carl.shielded = true;
-      setBattleText("Carl raises a bottle shield! Next hit blocked!");
-      break;
-  }
-  updateBattleHpBars();
-  await delay(1200);
-  await enemyTurn();
-}
-
-// ─── Battle: win ──────────────────────────────────────────────────────────────
-
-async function onBattleWin() {
-  const bt         = GS.battle;
-  const goldEarned = rand(...bt.enemy.gold);
-  GS.gold         += goldEarned;
-  bt.enemy.hp       = 0;
-  bt.enemy.defeated = true;
-  bt.over           = true;
-  updateBattleHpBars();
-  setBattleText(`${bt.enemy.name} fainted! +${goldEarned} 💰`);
-  await delay(1400);
-
-  // XP and leveling
-  const xpGain = bt.isBoss ? 35 : 12;
-  GS.xp += xpGain;
-  let leveledUp = false;
-  if (GS.level === 1 && GS.xp >= 12) { GS.level = 2; leveledUp = true; }
-  if (GS.level === 2 && GS.xp >= 35) { GS.level = 3; leveledUp = true; }
-  if (leveledUp) {
-    GS.carl.maxHp += 12;
-    GS.carl.hp     = Math.min(GS.carl.hp + 12, GS.carl.maxHp);
-    GS.carl.atkBase = [GS.carl.atkBase[0] + 2, GS.carl.atkBase[1] + 2];
-    setBattleText(`★ LEVEL UP! Carl is now Level ${GS.level}! Max HP +12, ATK +2 ★`);
-    GS.dramaTxt = { text: `LEVEL ${GS.level}!`, ttl: 150 };
-    await delay(1800);
-  }
-
-  // Random item drop
-  if (!bt.isBoss && Math.random() < 0.35 && GS.inventory.length < 3) {
-    const drop = Math.random() < 0.5 ? "hpotion" : "dirtyshirl";
-    const dropItem = SHOP_DATA.find(s => s.id === drop);
-    GS.inventory.push(drop);
-    setBattleText(`${bt.enemy.name} dropped a ${dropItem.emoji} ${dropItem.name}!`);
-    await delay(1400);
-  }
-
-  // System quip
-  const quip = SYSTEM_QUIPS[Math.floor(Math.random() * SYSTEM_QUIPS.length)];
-  setBattleText(quip);
-  await delay(1600);
-
-  if (bt.isBoss) {
-    const boss = bt.enemy;
-    document.getElementById("win-msg").textContent =
-      `Carl and Donut defeated ${boss.name}${boss.book ? ` (from "${boss.book}")` : ""}! ` +
-      `Level: ${GS.level} · Final gold: 💰 ${GS.gold}`;
-    GS.battle = null;
-    showScreen("screen-win");
-    return;
-  }
-
-  GS.battle = null;
-  openShop();
-}
-
-function endBattle() {
-  GS.battle = null;
-  battleGraceTtl = 100;
-  showScreen("screen-overworld");
-}
-
-// ─── Shop ─────────────────────────────────────────────────────────────────────
-
-function openShop() {
-  document.getElementById("shop-gold").textContent      = GS.gold;
-  document.getElementById("shop-inv-count").textContent = GS.inventory.length;
-  const grid = document.getElementById("shop-grid");
-  grid.innerHTML = "";
-  SHOP_DATA.forEach(item => {
-    const canBuy = GS.gold >= item.cost && GS.inventory.length < 3;
-    const card   = document.createElement("div");
-    card.className = "shop-card";
-    card.innerHTML = `
-      <div class="shop-card-emoji">${item.emoji}</div>
-      <div class="shop-card-name">${item.name}</div>
-      <div class="shop-card-desc">${item.desc}</div>
-      <div class="shop-card-price">💰 ${item.cost}</div>
-      <button class="btn-buy" ${canBuy ? "" : "disabled"} onclick="buyItem('${item.id}')">Buy</button>`;
-    grid.appendChild(card);
-  });
-  showScreen("screen-shop");
-}
-
-function buyItem(id) {
-  if (GS.inventory.length >= 3) return;
-  const item = SHOP_DATA.find(s => s.id === id);
-  if (!item || GS.gold < item.cost) return;
-  GS.gold -= item.cost;
-  GS.inventory.push(id);
-  openShop();
-}
-
-function leaveShop() {
-  battleGraceTtl = 100;
-  showScreen("screen-overworld");
-}
-
-// ─── Mobile controls ──────────────────────────────────────────────────────────
-
-function bindMobile(id, key) {
-  const el = document.getElementById(id);
-  if (!el) return;
-  el.addEventListener("pointerdown",  e => { KEYS[key] = true;  e.preventDefault(); }, { passive: false });
-  el.addEventListener("pointerup",    e => { KEYS[key] = false; e.preventDefault(); }, { passive: false });
-  el.addEventListener("pointerleave", ()  => { KEYS[key] = false; });
-}
-
-// ─── Entry point ──────────────────────────────────────────────────────────────
-
-function startGame() {
-  GS = newState();
-  cancelAnimationFrame(animId);
-  resizeCanvas();
-  showScreen("screen-overworld");
-  animId = requestAnimationFrame(overworldTick);
-}
-
-window.addEventListener("DOMContentLoaded", () => {
-  canvas = document.getElementById("game-canvas");
-  ctx    = canvas.getContext("2d");
-  resizeCanvas();
-  window.addEventListener("resize", () => { if (canvas) resizeCanvas(); });
-
-  bindMobile("mb-left",  "ArrowLeft");
-  bindMobile("mb-right", "ArrowRight");
-  bindMobile("mb-jump",  " ");
-
-  // Pre-fetch book boss character (non-blocking)
-  fetch("/happy-hour/boss")
-    .then(r => r.json())
-    .then(data => {
-      if (data && !data.default && data.character) {
-        loadedBossData = {
-          name:    data.character,
-          emoji:   data.emoji  || "🦹",
-          book:    data.book   || null,
-          flavor:  data.flavor || null,
-          maxHp:   65,
-          atk:     [9, 15],
-          gold:    [20, 30],
-          special: { name: "Final Chapter", atk: [14, 20], chance: 0.20 },
-        };
-        // Update start button label to hint at the boss
-        const btn = document.getElementById("start-btn");
-        if (btn && loadedBossData.name !== DEFAULT_BOSS.name) {
-          btn.title = `Boss: ${loadedBossData.name} (${loadedBossData.book})`;
+      if (e.diving) {
+        // Dive toward player
+        const dx = gs.player.x - e.x, dy = gs.player.y - e.y;
+        const dist = Math.sqrt(dx*dx + dy*dy) || 1;
+        e.x += (dx/dist) * e.diveSpd;
+        e.y += (dy/dist) * e.diveSpd;
+        e.diveShootTimer -= dt;
+        if (e.diveShootTimer <= 0 && e.def.shoots) {
+          e.diveShootTimer = 600 + Math.random() * 400;
+          gs.eBullets.push({x: e.x, y: e.y + 20});
+        }
+        // Return to formation if reached player area or off screen
+        if (e.y > CH - 80 || e.y < -60) {
+          e.diving = false;
+          e.x = Math.max(26, Math.min(CW-26, e.x));
+          e.formY = HUD_H + 60 + Math.floor(Math.random() * 3) * 55;
+        }
+      } else {
+        // Formation: occasional shoot
+        if (e.def.shoots && e.y > HUD_H + 30) {
+          e.shootTimer = (e.shootTimer || 3000) - dt;
+          if (e.shootTimer <= 0) {
+            e.shootTimer = 2500 + Math.random() * 3000 - gs.wave * 100;
+            gs.eBullets.push({x: e.x, y: e.y + 20});
+          }
+        }
+        // Occasionally dive
+        if (!e.def.isBoss) {
+          e.diveTimer = (e.diveTimer || (5000 + Math.random()*8000)) - dt;
+          if (e.diveTimer <= 0) {
+            e.diving = true;
+            e.diveSpd = 3.5 + gs.wave * 0.2;
+            e.diveShootTimer = 400;
+            e.diveTimer = 6000 + Math.random() * 8000;
+          }
         }
       }
-    })
-    .catch(() => {});
-});
+
+      // Boss side-to-side + shoot
+      if (e.def.isBoss) {
+        e.bossDir = e.bossDir || 1;
+        e.x += e.bossDir * (1.5 + gs.wave * 0.1);
+        if (e.x > CW - 40) e.bossDir = -1;
+        if (e.x < 40)      e.bossDir = 1;
+        e.shootTimer = (e.shootTimer || 800) - dt;
+        if (e.shootTimer <= 0) {
+          e.shootTimer = 500 + Math.random() * 500;
+          // Spread shot
+          [-12, 0, 12].forEach(ox => gs.eBullets.push({x: e.x + ox, y: e.y + 30}));
+        }
+      }
+    });
+  },
+
+  // ── Bullets ───────────────────────────────────────────────────────────────
+  _updateBullets(dt) {
+    const gs = this.gs;
+    gs.bullets = gs.bullets.filter(b => {
+      b.y -= 12;
+      if (b.y < HUD_H) return false;
+      // Hit enemy
+      for (let i = gs.enemies.length - 1; i >= 0; i--) {
+        const e = gs.enemies[i];
+        if (Math.abs(b.x - e.x) < 22 && Math.abs(b.y - e.y) < 22) {
+          e.hp -= b.dmg;
+          e.hitFlash = 180;
+          if (e.hp <= 0) this._killEnemy(i);
+          return false;
+        }
+      }
+      return true;
+    });
+  },
+
+  _updateEBullets(dt) {
+    const gs = this.gs, p = gs.player;
+    gs.eBullets = gs.eBullets.filter(b => {
+      b.y += 5 + gs.wave * 0.2;
+      if (b.y > CH) return false;
+      // Hit player
+      if (Math.abs(b.x - p.x) < 20 && Math.abs(b.y - p.y) < 20) {
+        this._hitPlayer();
+        return false;
+      }
+      return true;
+    });
+  },
+
+  // ── Power-ups ─────────────────────────────────────────────────────────────
+  _updatePowerups(dt) {
+    const gs = this.gs, p = gs.player;
+    gs.powerups = gs.powerups.filter(pu => {
+      pu.y += pu.vy;
+      if (pu.y > CH) return false;
+      if (Math.abs(pu.x - p.x) < 28 && Math.abs(pu.y - p.y) < 28) {
+        this._collectPowerup(pu.def);
+        return false;
+      }
+      return true;
+    });
+  },
+
+  // ── Particles ─────────────────────────────────────────────────────────────
+  _updateParticles(dt) {
+    const gs = this.gs;
+    gs.particles = gs.particles.filter(pt => {
+      pt.x += pt.vx; pt.y += pt.vy;
+      pt.vy += 0.08;
+      pt.life -= dt;
+      return pt.life > 0;
+    });
+  },
+
+  // ── Kill enemy ────────────────────────────────────────────────────────────
+  _killEnemy(idx) {
+    const gs = this.gs;
+    const e = gs.enemies.splice(idx, 1)[0];
+    gs.score += e.def.pts * gs.wave;
+    gs.killStreak++;
+
+    // Particles
+    for (let i = 0; i < 6; i++) {
+      gs.particles.push({
+        x: e.x, y: e.y,
+        vx: (Math.random()-0.5)*4, vy: (Math.random()-2.5)*3,
+        life: 600, maxLife: 600, col: '#c8a0ff',
+      });
+    }
+
+    // Power-up drop
+    const dropChance = e.def.dropPU ? 1.0 : 0.08;
+    if (Math.random() < dropChance) {
+      gs.powerups.push({ x: e.x, y: e.y, vy: 1.2, def: pick(POWERUP_DEFS) });
+    }
+
+    // Quip every 3 kills
+    if (gs.killStreak % 3 === 0) {
+      const useDonut = Math.random() < 0.5;
+      this._showQuip(useDonut ? pick(DONUT_QUIPS.kill) : pick(SYSTEM_QUIPS.kill), 3000);
+    }
+  },
+
+  // ── Hit player ────────────────────────────────────────────────────────────
+  _hitPlayer() {
+    const gs = this.gs, p = gs.player;
+    if (gs.elapsed < p.invEnd || p.invFrames > 0) return;
+    if (p.shield) {
+      p.shield = false;
+      this._showQuip("The System: Shield absorbed a hit. You're welcome.", 2500);
+      return;
+    }
+    p.lives--;
+    p.invFrames = 1800;
+    this._showQuip(pick(SYSTEM_QUIPS.hit), 2500);
+    setTimeout(() => {
+      if (this.gs === gs) this._showQuip(pick(DONUT_QUIPS.hit), 2500);
+    }, 1400);
+    // Screen shake via canvas offset
+    gs.shakeEnd = gs.elapsed + 300;
+    if (p.lives <= 0) {
+      cancelAnimationFrame(this.animId);
+      setTimeout(() => this._die(), 400);
+    }
+  },
+
+  // ── Collect power-up ──────────────────────────────────────────────────────
+  _collectPowerup(def) {
+    const gs = this.gs;
+    def.apply(gs);
+    this._showQuip(pick(SYSTEM_QUIPS.powerup), 3000);
+    setTimeout(() => { if (this.gs===gs) this._showQuip(pick(DONUT_QUIPS.powerup), 2500); }, 1600);
+    this._showAchiev(def.achievement, def.name + ' — ' + def.desc);
+  },
+
+  // ── Spawn wave ────────────────────────────────────────────────────────────
+  _spawnWave() {
+    const gs = this.gs;
+    gs.wave++;
+    gs.formation.x = 0;
+    gs.formation.dx = 1;
+    gs.lowHpQuipped = false;
+    gs.killStreak = 0;
+
+    const isBoss = gs.wave % 5 === 0;
+    if (isBoss) {
+      this._showQuip(pick(SYSTEM_QUIPS.boss), 3500);
+      const boss = Object.assign({}, gs.wave >= 10 ? BOSS_DEFS[1] : BOSS_DEFS[0]);
+      boss.hp = Math.round(boss.hp * (1 + (gs.wave - 5) * 0.2));
+      gs.enemies.push({
+        x: CW/2, y: HUD_H + 55, formY: HUD_H + 55,
+        hp: boss.hp, maxHp: boss.hp,
+        def: boss, hitFlash: 0, diving: false, bossDir: 1,
+      });
+      // Add escort Crawlersworn
+      const escort = ENEMY_DEFS[8];
+      [-120, 120].forEach((ox, i) => gs.enemies.push({
+        x: CW/2 + ox, y: HUD_H + 90, formY: HUD_H + 90,
+        hp: escort.hp, maxHp: escort.hp, def: escort,
+        hitFlash: 0, diving: false, shootTimer: 2000 + i*500,
+      }));
+    } else {
+      // Choose enemy types that scale with wave
+      const pool = gs.wave <= 2 ? ENEMY_DEFS.slice(0,3)
+                 : gs.wave <= 4 ? ENEMY_DEFS.slice(0,5)
+                 : gs.wave <= 6 ? ENEMY_DEFS.slice(0,7)
+                 : ENEMY_DEFS;
+      const cols = Math.min(6 + Math.floor(gs.wave / 2), 10);
+      const rows = Math.min(2 + Math.floor(gs.wave / 3), 5);
+      const spacingX = Math.min(52, (CW - 80) / cols);
+      const spacingY = 54;
+      const startX = (CW - (cols - 1) * spacingX) / 2;
+
+      for (let r = 0; r < rows; r++) {
+        for (let c = 0; c < cols; c++) {
+          const def = pick(pool);
+          const hpMult = 1 + (gs.wave - 1) * 0.12;
+          const hp = Math.ceil(def.hp * hpMult);
+          gs.enemies.push({
+            x: startX + c * spacingX,
+            y: HUD_H + 20 + r * spacingY,
+            formY: HUD_H + 20 + r * spacingY,
+            hp, maxHp: hp, def,
+            hitFlash: 0, diving: false,
+            shootTimer: 3000 + Math.random() * 3000,
+            diveTimer: 6000 + Math.random() * 8000,
+          });
+        }
+      }
+    }
+    gs.waveState = 'active';
+  },
+
+  // ── Render ────────────────────────────────────────────────────────────────
+  render() {
+    const gs = this.gs, ctx = this.ctx;
+    ctx.save();
+    if (gs.shakeEnd && gs.elapsed < gs.shakeEnd) {
+      ctx.translate((Math.random()-0.5)*6, (Math.random()-0.5)*4);
+    }
+    this._drawBg();
+    this._drawPowerups();
+    this._drawEBullets();
+    this._drawBullets();
+    this._drawEnemies();
+    this._drawPlayer();
+    this._drawParticles();
+    this._drawHUD();
+    ctx.restore();
+  },
+
+  // ── Background ────────────────────────────────────────────────────────────
+  _drawBg() {
+    const ctx = this.ctx;
+    // Sky/ceiling
+    const skyGrad = ctx.createLinearGradient(0,0,0,CH);
+    skyGrad.addColorStop(0,   '#04010a');
+    skyGrad.addColorStop(0.5, '#0a0318');
+    skyGrad.addColorStop(1,   '#120522');
+    ctx.fillStyle = skyGrad;
+    ctx.fillRect(0, 0, CW, CH);
+
+    // Stone brick rows
+    ctx.globalAlpha = 0.18;
+    for (let ry = HUD_H + 12; ry < CH; ry += 28) {
+      for (let rx = 0; rx < CW; rx += 60) {
+        const offset = ((ry / 28) % 2 === 0) ? 0 : 30;
+        ctx.fillStyle = (Math.floor(rx/60 + ry/28) % 2 === 0) ? '#2a1840' : '#1e1030';
+        ctx.fillRect(rx + offset, ry, 58, 26);
+      }
+    }
+    ctx.globalAlpha = 1;
+
+    // Left/right wall columns
+    const wallGrad = ctx.createLinearGradient(0,0,40,0);
+    wallGrad.addColorStop(0, 'rgba(30,10,50,0.85)');
+    wallGrad.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = wallGrad;
+    ctx.fillRect(0, HUD_H, 42, CH);
+    const wallGrad2 = ctx.createLinearGradient(CW,0,CW-40,0);
+    wallGrad2.addColorStop(0, 'rgba(30,10,50,0.85)');
+    wallGrad2.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = wallGrad2;
+    ctx.fillRect(CW-42, HUD_H, 42, CH);
+
+    // Torches
+    const gs = this.gs;
+    const flicker = 0.7 + Math.sin(gs.elapsed * 0.008) * 0.3;
+    [[18, 160],[18, 400],[CW-22, 160],[CW-22, 400]].forEach(([tx,ty]) => {
+      ctx.save();
+      ctx.globalAlpha = 0.7 * flicker;
+      const tg = ctx.createRadialGradient(tx,ty,0,tx,ty,55);
+      tg.addColorStop(0, 'rgba(255,160,30,0.8)');
+      tg.addColorStop(1, 'rgba(255,60,0,0)');
+      ctx.fillStyle = tg;
+      ctx.fillRect(tx-55, ty-55, 110, 110);
+      ctx.globalAlpha = 1;
+      ctx.font = '16px serif'; ctx.textAlign = 'center';
+      ctx.fillText('🔥', tx, ty + 6);
+      ctx.restore();
+    });
+
+    // Floor line
+    ctx.strokeStyle = '#3a1a60'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(0, GROUND_Y + 22); ctx.lineTo(CW, GROUND_Y + 22); ctx.stroke();
+
+    // Rune row at top of play area
+    ctx.globalAlpha = 0.25;
+    ctx.font = '11px serif'; ctx.textAlign = 'center'; ctx.fillStyle = '#c8a0ff';
+    ['✦','⬡','✦','⬡','✦','⬡','✦','⬡','✦','⬡'].forEach((r,i) => {
+      ctx.fillText(r, 28 + i * 56, HUD_H + 14);
+    });
+    ctx.globalAlpha = 1;
+  },
+
+  // ── Player ────────────────────────────────────────────────────────────────
+  _drawPlayer() {
+    const gs = this.gs, ctx = this.ctx, p = gs.player;
+    if (p.invFrames > 0 && Math.floor(gs.elapsed / 80) % 2 === 0) return;
+
+    // Shield ring
+    if (p.shield) {
+      ctx.save();
+      ctx.strokeStyle = '#aaffee'; ctx.lineWidth = 3;
+      ctx.globalAlpha = 0.6 + Math.sin(gs.elapsed*0.01)*0.4;
+      ctx.beginPath(); ctx.arc(p.x, p.y, 28, 0, Math.PI*2); ctx.stroke();
+      ctx.restore();
+    }
+    // Haste glow
+    if (gs.elapsed < p.hasteEnd) {
+      ctx.save(); ctx.globalAlpha = 0.4;
+      const hg = ctx.createRadialGradient(p.x,p.y,0,p.x,p.y,32);
+      hg.addColorStop(0,'rgba(180,255,200,0.8)'); hg.addColorStop(1,'rgba(0,0,0,0)');
+      ctx.fillStyle = hg; ctx.fillRect(p.x-34,p.y-34,68,68);
+      ctx.restore();
+    }
+    // Magic aura
+    ctx.save();
+    ctx.globalAlpha = 0.3;
+    const ag = ctx.createRadialGradient(p.x,p.y,0,p.x,p.y,24);
+    ag.addColorStop(0,'rgba(160,80,255,0.9)'); ag.addColorStop(1,'rgba(0,0,0,0)');
+    ctx.fillStyle = ag; ctx.fillRect(p.x-26,p.y-26,52,52);
+    ctx.restore();
+
+    // Cat + crown
+    ctx.font = '32px serif'; ctx.textAlign = 'center';
+    ctx.fillText('🐱', p.x, p.y + 10);
+    ctx.font = '18px serif';
+    ctx.fillText('👑', p.x + 1, p.y - 14);
+
+    // Blink indicator
+    if (p.blinks > 0) {
+      ctx.font = '10px sans-serif'; ctx.fillStyle = '#c8a0ff';
+      ctx.fillText('✨×'+p.blinks, p.x, p.y + 32);
+    }
+  },
+
+  // ── Enemies ───────────────────────────────────────────────────────────────
+  _drawEnemies() {
+    const gs = this.gs, ctx = this.ctx;
+    gs.enemies.forEach(e => {
+      const flash = e.hitFlash > 0;
+      ctx.save();
+      if (flash) ctx.globalAlpha = 0.55;
+      const sz = e.def.isBoss ? 44 : 26;
+      ctx.font = sz + 'px serif'; ctx.textAlign = 'center';
+      ctx.fillText(e.def.emoji, e.x, e.y + sz/2 - 2);
+      if (flash) { ctx.globalAlpha=1; ctx.fillStyle='rgba(255,255,255,0.5)'; ctx.fillText(e.def.emoji, e.x, e.y + sz/2 - 2); }
+      // HP bar for bosses
+      if (e.def.isBoss) {
+        const bw = 80, bh = 6;
+        ctx.globalAlpha = 1;
+        ctx.fillStyle = '#333'; ctx.fillRect(e.x - bw/2, e.y - 32, bw, bh);
+        const pct = e.hp / e.maxHp;
+        ctx.fillStyle = pct > 0.5 ? '#60c060' : pct > 0.25 ? '#d0a020' : '#c03030';
+        ctx.fillRect(e.x - bw/2, e.y - 32, bw * pct, bh);
+        ctx.strokeStyle='#666'; ctx.lineWidth=1; ctx.strokeRect(e.x - bw/2, e.y - 32, bw, bh);
+        ctx.font='10px sans-serif'; ctx.fillStyle='#eee'; ctx.textAlign='center';
+        ctx.fillText(e.def.name + '  ' + e.hp + '/' + e.maxHp, e.x, e.y - 35);
+      }
+      ctx.restore();
+    });
+  },
+
+  // ── Bullets ───────────────────────────────────────────────────────────────
+  _drawBullets() {
+    const ctx = this.ctx;
+    ctx.save();
+    this.gs.bullets.forEach(b => {
+      ctx.font = '14px serif'; ctx.textAlign = 'center';
+      ctx.fillText('✨', b.x, b.y + 6);
+    });
+    ctx.restore();
+  },
+  _drawEBullets() {
+    const ctx = this.ctx;
+    ctx.save(); ctx.fillStyle = '#ff4444';
+    this.gs.eBullets.forEach(b => {
+      ctx.beginPath(); ctx.arc(b.x, b.y, 4, 0, Math.PI*2); ctx.fill();
+    });
+    ctx.restore();
+  },
+  _drawPowerups() {
+    const ctx = this.ctx;
+    ctx.save();
+    this.gs.powerups.forEach(pu => {
+      ctx.font = '20px serif'; ctx.textAlign='center';
+      ctx.fillText(pu.def.emoji, pu.x, pu.y + 8);
+    });
+    ctx.restore();
+  },
+
+  // ── Particles ─────────────────────────────────────────────────────────────
+  _drawParticles() {
+    const ctx = this.ctx;
+    this.gs.particles.forEach(pt => {
+      ctx.save();
+      ctx.globalAlpha = pt.life / pt.maxLife;
+      ctx.fillStyle = pt.col || '#c8a0ff';
+      ctx.beginPath(); ctx.arc(pt.x, pt.y, 3, 0, Math.PI*2); ctx.fill();
+      ctx.restore();
+    });
+  },
+
+  // ── HUD ───────────────────────────────────────────────────────────────────
+  _drawHUD() {
+    const gs = this.gs, ctx = this.ctx, p = gs.player;
+    // Background bar
+    ctx.fillStyle = 'rgba(7,4,15,0.92)';
+    ctx.fillRect(0, 0, CW, HUD_H - 4);
+    ctx.strokeStyle = '#3a1a60'; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(0, HUD_H-4); ctx.lineTo(CW, HUD_H-4); ctx.stroke();
+
+    // Floor banner
+    ctx.font = 'bold 11px Oswald, sans-serif'; ctx.fillStyle = '#6040a0'; ctx.textAlign='left';
+    ctx.fillText('FLOOR 23', 10, 16);
+
+    // Wave
+    ctx.fillStyle = '#c8a0ff'; ctx.textAlign='center';
+    ctx.font = 'bold 13px Oswald, sans-serif';
+    ctx.fillText('WAVE  ' + gs.wave, CW/2, 16);
+
+    // Score
+    ctx.textAlign='right';
+    ctx.fillText('SCORE  ' + gs.score, CW - 10, 16);
+
+    // Lives
+    ctx.textAlign='left'; ctx.font='16px serif';
+    let lx = 10;
+    for (let i = 0; i < p.lives; i++) { ctx.fillText('💜', lx, 36); lx += 22; }
+
+    // Active power-up icons
+    const icons = [];
+    if (p.shield)      icons.push('🛡️');
+    if (p.tripleShot)  icons.push('👑');
+    if (p.blinks > 0)  icons.push('🐕×'+p.blinks);
+    if (gs.elapsed < p.hasteEnd)  icons.push('💨');
+    if (gs.elapsed < p.rapidEnd)  icons.push('🍞');
+    ctx.textAlign='right'; ctx.font='13px serif'; ctx.fillStyle='rgba(200,160,255,0.85)';
+    icons.reverse().forEach((ic,i) => ctx.fillText(ic, CW-10 - i*28, 36));
+
+    // Time
+    const secs = Math.floor(gs.elapsed / 1000);
+    ctx.textAlign='center'; ctx.font='11px monospace'; ctx.fillStyle='#6040a0';
+    ctx.fillText('⏱ ' + secs + 's', CW/2, 36);
+
+    // "Between waves" countdown
+    if (gs.waveState === 'between') {
+      ctx.save();
+      ctx.globalAlpha = 0.85;
+      ctx.font = 'bold 15px Oswald, sans-serif'; ctx.textAlign='center'; ctx.fillStyle='#c8a0ff';
+      const delay = Math.ceil(gs.waveDelay / 1000);
+      ctx.fillText('Next wave in ' + delay + '…', CW/2, CH/2 - 10);
+      ctx.restore();
+    }
+  },
+
+  // ── Quip bar ──────────────────────────────────────────────────────────────
+  _showQuip(text, dur) {
+    const el = document.getElementById('quip-bar');
+    if (!el) return;
+    el.textContent = text;
+    el.className = 'quip-on';
+    clearTimeout(this._quipTimer);
+    this._quipTimer = setTimeout(() => { el.className = 'quip-off'; }, dur);
+  },
+  _hideQuip() {
+    const el = document.getElementById('quip-bar');
+    if (el) el.className = 'quip-off';
+  },
+
+  // ── Achievement popup ─────────────────────────────────────────────────────
+  _showAchiev(name, desc) {
+    document.getElementById('ach-name').textContent = name;
+    document.getElementById('ach-desc').textContent = desc;
+    const el = document.getElementById('achievement-popup');
+    el.className = 'achievement-on';
+    clearTimeout(this._achievTimer);
+    this._achievTimer = setTimeout(() => { el.className = 'achievement-off'; }, 3500);
+  },
+  _hideAchiev() {
+    const el = document.getElementById('achievement-popup');
+    if (el) el.className = 'achievement-off';
+  },
+
+  // ── Death ─────────────────────────────────────────────────────────────────
+  _die() {
+    const gs = this.gs;
+    const secs = Math.floor(gs.elapsed / 1000);
+    document.getElementById('d-score').textContent = gs.score;
+    document.getElementById('d-wave').textContent  = gs.wave;
+    document.getElementById('d-time').textContent  = secs + 's';
+    document.getElementById('death-system-quip').textContent = pick(DEATH_SYSTEM_QUIPS);
+    document.getElementById('death-donut-quip').textContent  = '"' + pick(DONUT_QUIPS.death) + '"';
+    document.getElementById('player-name').value = '';
+    this.showScreen('death');
+  },
+
+  submitScore() {
+    const gs = this.gs;
+    const name = (document.getElementById('player-name').value.trim() || 'Anonymous').slice(0,24);
+    const secs = Math.floor(gs.elapsed / 1000);
+    fetch('/happy-hour/scores', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ name, score: gs.score, wave: gs.wave, time: secs }),
+    }).then(() => this.showLeaderboard()).catch(() => this.showLeaderboard());
+  },
+
+  // ── Leaderboard ───────────────────────────────────────────────────────────
+  showLeaderboard() {
+    this.showScreen('leaderboard');
+    const tbody = document.getElementById('lb-body');
+    tbody.innerHTML = '<tr><td colspan="5" class="lb-loading">Loading…</td></tr>';
+    fetch('/happy-hour/scores')
+      .then(r => r.json())
+      .then(scores => {
+        if (!scores.length) {
+          tbody.innerHTML = '<tr><td colspan="5" class="lb-loading">No scores yet. Be the first to die heroically.</td></tr>';
+          return;
+        }
+        tbody.innerHTML = scores.slice(0,15).map((s,i) =>
+          `<tr><td>${i+1}</td><td>${s.name}</td><td>${s.score}</td><td>${s.wave}</td><td>${s.time}s</td></tr>`
+        ).join('');
+      })
+      .catch(() => {
+        tbody.innerHTML = '<tr><td colspan="5" class="lb-loading">The System cannot retrieve records. Typical.</td></tr>';
+      });
+  },
+};
+
+// ── Boot ──────────────────────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', () => Game.init());
+
