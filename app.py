@@ -1,4 +1,5 @@
 import os
+import json
 from flask import Flask, render_template, request, redirect, url_for, flash, jsonify
 from flask_migrate import Migrate
 from models import db, Member, Book, Rating, PastBook, PastBookRating, APPROVAL_THRESHOLD
@@ -411,25 +412,44 @@ def trivia_questions():
         return jsonify({"error": str(e)}), 500
 
 
+_SCORES_FILE = os.path.join(os.path.dirname(__file__), "galaga_scores.json")
+
+
+def _load_scores():
+    try:
+        with open(_SCORES_FILE) as f:
+            return json.load(f)
+    except (FileNotFoundError, ValueError):
+        return []
+
+
+def _save_scores(scores):
+    with open(_SCORES_FILE, "w") as f:
+        json.dump(scores, f)
+
+
 @app.route("/happy-hour")
 def happy_hour():
     return render_template("happy_hour.html")
 
 
-@app.route("/happy-hour/boss")
-def game_boss():
-    books = []
-    for b in Book.query.all():
-        books.append({"title": b.title, "author": b.author})
-    for pb in PastBook.query.all():
-        books.append({"title": pb.title, "author": pb.author})
-    if not books or not app.config["HAS_API_KEY"]:
-        return jsonify({"default": True})
-    try:
-        data = get_boss_character(books)
-        return jsonify(data)
-    except Exception:
-        return jsonify({"default": True})
+@app.route("/happy-hour/scores", methods=["GET"])
+def get_scores():
+    return jsonify(_load_scores())
+
+
+@app.route("/happy-hour/scores", methods=["POST"])
+def post_score():
+    data = request.get_json(force=True, silent=True) or {}
+    name  = str(data.get("name",  "Anonymous"))[:24].strip() or "Anonymous"
+    score = int(data.get("score", 0))
+    wave  = int(data.get("wave",  1))
+    time  = int(data.get("time",  0))
+    scores = _load_scores()
+    scores.append({"name": name, "score": score, "wave": wave, "time": time})
+    scores.sort(key=lambda x: x["score"], reverse=True)
+    _save_scores(scores[:50])
+    return jsonify({"ok": True})
 
 
 if __name__ == "__main__":
