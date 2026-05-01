@@ -193,22 +193,22 @@
 
 #quip-bar {
   position: absolute;
-  top: 50px;
+  bottom: 0;
   left: 0; right: 0;
-  background: rgba(10,4,20,0.88);
-  border-bottom: 1px solid #3a1a60;
+  background: rgba(10,4,20,0.92);
+  border-top: 1px solid #3a1a60;
   font-family: 'Courier New', monospace;
-  font-size: 0.72rem;
+  font-size: 0.78rem;
   color: #9a70c0;
-  padding: 0.25rem 0.6rem;
+  padding: 0.4rem 0.75rem;
   pointer-events: none;
   opacity: 0;
   transition: opacity 0.3s ease;
   z-index: 9;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  line-height: 1.5;
 }
+.quip-off { opacity: 0 !important; }
+.quip-on  { opacity: 1 !important; }
 .quip-off { opacity: 0 !important; }
 .quip-on  { opacity: 1 !important; }
 
