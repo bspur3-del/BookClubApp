@@ -44,16 +44,15 @@
   <div id="screen-game" class="pd-screen">
     <div class="canvas-outer">
       <canvas id="game-canvas"></canvas>
-    </div>
 
-    <!-- Quip bar — below canvas, never overlapping -->
-    <div id="quip-bar" class="quip-off"></div>
+      <!-- Quip — small strip at top of canvas, below HUD -->
+      <div id="quip-bar" class="quip-off"></div>
 
-    <!-- Achievement popup — below canvas, never overlapping -->
-    <div id="achievement-popup" class="achievement-off">
-      <div class="ach-label">⚡ NEW ACHIEVEMENT!! ⚡</div>
-      <div class="ach-name" id="ach-name"></div>
-      <div class="ach-desc" id="ach-desc"></div>
+      <!-- Achievement — compact badge, mid-canvas -->
+      <div id="achievement-popup" class="achievement-off">
+        <span class="ach-label">⚡ NEW ACHIEVEMENT!! ⚡</span>
+        <span class="ach-name" id="ach-name"></span>
+      </div>
     </div>
 
     <!-- Mobile d-pad -->

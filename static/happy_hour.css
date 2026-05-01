@@ -154,63 +154,63 @@
 /* ── Achievement popup ──────────────────────────────────────────────────── */
 
 #achievement-popup {
-  background: linear-gradient(135deg, #1a0830, #2a1050);
-  border: 2px solid #c8a0ff;
-  border-radius: 6px;
-  text-align: center;
-  box-shadow: 0 0 24px rgba(180,100,255,0.5);
-  overflow: hidden;
-  max-height: 0;
-  opacity: 0;
-  padding: 0 1.2rem;
-  transition: max-height 0.35s ease, opacity 0.3s ease, padding 0.3s ease;
+  position: absolute;
+  bottom: 72px;
+  left: 50%;
+  transform: translateX(-50%);
+  white-space: nowrap;
+  background: rgba(20,8,40,0.92);
+  border: 1px solid #c8a0ff;
+  border-radius: 4px;
+  padding: 0.3rem 0.8rem;
+  font-size: 0.72rem;
   pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  z-index: 10;
 }
 
-.achievement-off { max-height: 0 !important; opacity: 0 !important; padding: 0 1.2rem !important; }
-.achievement-on  { max-height: 120px !important; opacity: 1 !important; padding: 0.6rem 1.2rem !important; }
+.achievement-off { opacity: 0 !important; }
+.achievement-on  { opacity: 1 !important; }
 
 .ach-label {
   font-family: 'Oswald', sans-serif;
   font-size: 0.68rem;
-  letter-spacing: 0.2em;
+  letter-spacing: 0.15em;
   color: #ffdd44;
   text-transform: uppercase;
-  margin-bottom: 0.2rem;
+  margin-right: 0.5rem;
 }
 .ach-name {
   font-family: 'Oswald', sans-serif;
-  font-size: 1.1rem;
+  font-size: 0.72rem;
   color: #c8a0ff;
   font-weight: 700;
-  letter-spacing: 0.08em;
-}
-.ach-desc {
-  font-size: 0.72rem;
-  color: rgba(200,180,255,0.7);
-  margin-top: 0.15rem;
+  letter-spacing: 0.06em;
 }
 
 /* ── Quip bar ───────────────────────────────────────────────────────────── */
 
 #quip-bar {
+  position: absolute;
+  top: 50px;
+  left: 0; right: 0;
   background: rgba(10,4,20,0.88);
-  border: 1px solid #3a1a60;
-  border-top: none;
+  border-bottom: 1px solid #3a1a60;
   font-family: 'Courier New', monospace;
-  font-size: 0.75rem;
+  font-size: 0.72rem;
   color: #9a70c0;
-  padding: 0 0.75rem;
-  text-align: left;
-  overflow: hidden;
-  max-height: 0;
-  opacity: 0;
-  transition: max-height 0.3s ease, opacity 0.3s ease, padding 0.3s ease;
+  padding: 0.25rem 0.6rem;
   pointer-events: none;
-  line-height: 1.5;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  z-index: 9;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
-.quip-off { max-height: 0 !important; opacity: 0 !important; padding: 0 0.75rem !important; }
-.quip-on  { max-height: 3rem !important; opacity: 1 !important; padding: 0.35rem 0.75rem !important; }
+.quip-off { opacity: 0 !important; }
+.quip-on  { opacity: 1 !important; }
 
 /* ── Mobile controls ────────────────────────────────────────────────────── */
 
