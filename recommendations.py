@@ -1,6 +1,7 @@
 import os
 import json
 import time
+import random
 import httpx
 import anthropic
 
@@ -66,6 +67,18 @@ def _parse_book_list(text: str) -> list:
     return json.loads(text)
 
 
+_GROUP_REC_ANGLES = [
+    "Prioritise a debut novel or a lesser-known author who fits the pattern.",
+    "Consider a book published in the last five years that matches the club's taste.",
+    "Look at international or translated fiction that fits the pattern.",
+    "Explore a classic (pre-1980) that matches what the club loves.",
+    "Suggest something from an author the club hasn't read yet, even if the book is well-known.",
+    "Think beyond the most obvious choice — surface a hidden gem that fits the pattern.",
+    "Consider a short novel (under 250 pages) that matches the club's preferences.",
+    "Look for a book with an unusual narrative structure that still fits what the club approves.",
+]
+
+
 def get_group_recommendation(history: list[dict]) -> dict:
     """Returns a single book recommendation as a dict with title, author, reason."""
     if not history:
@@ -82,6 +95,7 @@ def get_group_recommendation(history: list[dict]) -> dict:
     )
     approved_titles = ", ".join(f'"{h["title"]}"' for h in approved) or "none yet"
     rejected_titles = ", ".join(f'"{h["title"]}"' for h in not_approved) or "none"
+    angle = random.choice(_GROUP_REC_ANGLES)
 
     message = _call_with_retry(
         model="claude-sonnet-4-6",
@@ -100,12 +114,25 @@ def get_group_recommendation(history: list[dict]) -> dict:
                 "Recommend exactly 1 book NOT already in the list above that this club will most likely approve. "
                 "Your recommendation must be grounded in specific, observable patterns from their ratings — "
                 "not generic taste assumptions.\n\n"
+                f"Exploration angle for this recommendation: {angle}\n\n"
                 "Respond ONLY with valid JSON, no other text:\n"
                 '{"title": "Book Title", "author": "Full Author Name", "reason": "Two sentences: first cite the specific qualities of their approved books that this shares, then address why it avoids what they rejected."}'
             ),
         }],
     )
     return _parse_book_json(message.content[0].text)
+
+
+_MEMBER_REC_ANGLES = [
+    "Suggest a debut novel or a lesser-known author who fits their taste.",
+    "Consider a book published in the last five years.",
+    "Look at international or translated fiction that fits their preferences.",
+    "Explore a classic (pre-1980) that matches what they love.",
+    "Suggest something from an author they haven't read, even if the book is well-known.",
+    "Think beyond the obvious choice — surface a hidden gem that fits their pattern.",
+    "Consider a shorter novel (under 250 pages) that matches their preferences.",
+    "Look for a book with an unconventional structure that still fits what they love.",
+]
 
 
 def get_member_recommendation(member_name: str, history: list[dict]) -> dict:
@@ -115,7 +142,6 @@ def get_member_recommendation(member_name: str, history: list[dict]) -> dict:
 
     sorted_history = sorted(history, key=lambda x: x["rating"], reverse=True)
     loved = [h for h in history if h["rating"] >= 4]
-    middle = [h for h in history if h["rating"] == 3]
     disliked = [h for h in history if h["rating"] <= 2]
     avg = sum(h["rating"] for h in history) / len(history)
 
@@ -125,6 +151,7 @@ def get_member_recommendation(member_name: str, history: list[dict]) -> dict:
     )
     loved_text = ", ".join(f'"{h["title"]}"' for h in loved) or "none yet"
     disliked_text = ", ".join(f'"{h["title"]}"' for h in disliked) or "none"
+    angle = random.choice(_MEMBER_REC_ANGLES)
 
     message = _call_with_retry(
         model="claude-sonnet-4-6",
@@ -144,6 +171,7 @@ def get_member_recommendation(member_name: str, history: list[dict]) -> dict:
                 f"Use this analysis to recommend exactly 1 book {member_name} has NOT read.\n\n"
                 "Do NOT recommend any book already listed. Be specific — reference actual elements "
                 "from their loved books in the reason, not vague genre labels.\n\n"
+                f"Exploration angle for this recommendation: {angle}\n\n"
                 "Respond ONLY with valid JSON, no other text:\n"
                 '{"title": "Book Title", "author": "Full Author Name", "reason": "Two sentences: first name the specific qualities from their loved books that this recommendation shares, then why it avoids what they disliked."}'
             ),
@@ -338,6 +366,12 @@ def get_trivia_questions(books: list[dict]) -> list[dict]:
                 "- Spread questions across different books when multiple books are listed\n"
                 "- Do NOT ask vague or generic questions — be specific to the actual text\n"
                 "- Wrong answers must be plausible (not obviously silly)\n\n"
+                "ACCURACY IS CRITICAL:\n"
+                "- Only generate questions about facts you are certain are correct.\n"
+                "- Do NOT invent, guess at, or speculate about plot details, character names, specific dialogue, or events.\n"
+                "- If you are uncertain about a specific detail in a book, skip it and choose a different aspect you ARE certain about.\n"
+                "- Prefer questions about major plot events, protagonist names, central themes, and well-established facts.\n"
+                "- Every answer marked as correct MUST actually be correct — double-check before including it.\n\n"
                 'Respond ONLY with a valid JSON array. The "correct" field is the 0-indexed position of the correct answer in the options array:\n'
                 '[{"question": "...", "options": ["A. ...", "B. ...", "C. ...", "D. ..."], "correct": 0, "book": "Title", "bonus": false}]'
             ),
