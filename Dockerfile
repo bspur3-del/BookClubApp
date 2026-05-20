@@ -11,4 +11,7 @@ ENV FLASK_APP=app.py
 
 EXPOSE 8080
 
-CMD flask db upgrade && gunicorn app:app --bind 0.0.0.0:$PORT
+COPY start.sh .
+RUN chmod +x start.sh
+
+CMD ["./start.sh"]
