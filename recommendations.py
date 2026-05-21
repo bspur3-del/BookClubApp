@@ -76,7 +76,33 @@ _GROUP_REC_ANGLES = [
     "Think beyond the most obvious choice — surface a hidden gem that fits the pattern.",
     "Consider a short novel (under 250 pages) that matches the club's preferences.",
     "Look for a book with an unusual narrative structure that still fits what the club approves.",
+    "Suggest a book from a country or culture not represented in their reading history.",
+    "Look at prize-winning literary fiction (Booker, Pulitzer, etc.) that fits their taste.",
+    "Suggest a non-fiction or hybrid work that fits the themes they love.",
+    "Consider a short story collection that matches the club's preferred tone.",
 ]
+
+# In-memory record of recently suggested titles per context, to prevent repeats.
+# Keys: "group", "member:<name>", "book:<title>".  Persists until server restart.
+_recent_recs: dict[str, list[str]] = {}
+
+
+def _recent_exclusion(key: str) -> str:
+    """Return a prompt clause listing recently suggested titles to avoid."""
+    recent = _recent_recs.get(key, [])
+    if not recent:
+        return ""
+    titles = ", ".join(f'"{t}"' for t in recent)
+    return f"Do NOT suggest any of these recently recommended titles: {titles}\n\n"
+
+
+def _record_rec(key: str, title: str) -> None:
+    """Add a recommended title to the recent-recs cache (keeps last 12 per key)."""
+    if not title:
+        return
+    lst = [t for t in _recent_recs.get(key, []) if t.lower() != title.lower()]
+    lst.insert(0, title)
+    _recent_recs[key] = lst[:12]
 
 
 def get_group_recommendation(history: list[dict]) -> dict:
@@ -96,6 +122,7 @@ def get_group_recommendation(history: list[dict]) -> dict:
     approved_titles = ", ".join(f'"{h["title"]}"' for h in approved) or "none yet"
     rejected_titles = ", ".join(f'"{h["title"]}"' for h in not_approved) or "none"
     angle = random.choice(_GROUP_REC_ANGLES)
+    exclusion = _recent_exclusion("group")
 
     message = _call_with_retry(
         model="claude-sonnet-4-6",
@@ -114,13 +141,16 @@ def get_group_recommendation(history: list[dict]) -> dict:
                 "Recommend exactly 1 book NOT already in the list above that this club will most likely approve. "
                 "Your recommendation must be grounded in specific, observable patterns from their ratings — "
                 "not generic taste assumptions.\n\n"
+                f"{exclusion}"
                 f"Exploration angle for this recommendation: {angle}\n\n"
                 "Respond ONLY with valid JSON, no other text:\n"
                 '{"title": "Book Title", "author": "Full Author Name", "reason": "Two sentences: first cite the specific qualities of their approved books that this shares, then address why it avoids what they rejected."}'
             ),
         }],
     )
-    return _parse_book_json(message.content[0].text)
+    result = _parse_book_json(message.content[0].text)
+    _record_rec("group", result.get("title", ""))
+    return result
 
 
 _MEMBER_REC_ANGLES = [
@@ -132,6 +162,10 @@ _MEMBER_REC_ANGLES = [
     "Think beyond the obvious choice — surface a hidden gem that fits their pattern.",
     "Consider a shorter novel (under 250 pages) that matches their preferences.",
     "Look for a book with an unconventional structure that still fits what they love.",
+    "Suggest a book from a country or culture not represented in their reading history.",
+    "Look at prize-winning literary fiction (Booker, Pulitzer, etc.) that fits their taste.",
+    "Consider non-fiction or narrative journalism that fits their preferred themes.",
+    "Suggest a book by a debut author published in the last three years.",
 ]
 
 
@@ -152,6 +186,8 @@ def get_member_recommendation(member_name: str, history: list[dict]) -> dict:
     loved_text = ", ".join(f'"{h["title"]}"' for h in loved) or "none yet"
     disliked_text = ", ".join(f'"{h["title"]}"' for h in disliked) or "none"
     angle = random.choice(_MEMBER_REC_ANGLES)
+    cache_key = f"member:{member_name}"
+    exclusion = _recent_exclusion(cache_key)
 
     message = _call_with_retry(
         model="claude-sonnet-4-6",
@@ -171,13 +207,51 @@ def get_member_recommendation(member_name: str, history: list[dict]) -> dict:
                 f"Use this analysis to recommend exactly 1 book {member_name} has NOT read.\n\n"
                 "Do NOT recommend any book already listed. Be specific — reference actual elements "
                 "from their loved books in the reason, not vague genre labels.\n\n"
+                f"{exclusion}"
                 f"Exploration angle for this recommendation: {angle}\n\n"
                 "Respond ONLY with valid JSON, no other text:\n"
                 '{"title": "Book Title", "author": "Full Author Name", "reason": "Two sentences: first name the specific qualities from their loved books that this recommendation shares, then why it avoids what they disliked."}'
             ),
         }],
     )
-    return _parse_book_json(message.content[0].text)
+    result = _parse_book_json(message.content[0].text)
+    _record_rec(cache_key, result.get("title", ""))
+    return result
+
+
+def get_book_recommendation(book_title: str, book_author: str,
+                            average_rating: float, is_approved: bool) -> dict:
+    """Recommend a book similar to a specific title based on its rating alone."""
+    status = "APPROVED" if is_approved else "not approved"
+    angle = random.choice(_GROUP_REC_ANGLES)
+    cache_key = f"book:{book_title}"
+    exclusion = _recent_exclusion(cache_key)
+
+    message = _call_with_retry(
+        model="claude-sonnet-4-6",
+        max_tokens=500,
+        messages=[{
+            "role": "user",
+            "content": (
+                "You are a literary expert recommending the next book for a book club.\n\n"
+                f'The club just finished "{book_title}" by {book_author}. '
+                f"They rated it {average_rating:.1f}/5 ({status} on the Gonder Scale, "
+                f"where 3.6+ earns APPROVED).\n\n"
+                f"Recommend exactly 1 book that is similar in themes, writing style, mood, "
+                f"or subject matter to \"{book_title}\". Base your recommendation purely on "
+                f"this book — do not assume knowledge of any other books the club has read.\n\n"
+                f"{exclusion}"
+                f"Exploration angle: {angle}\n\n"
+                "Respond ONLY with valid JSON, no other text:\n"
+                '{"title": "Book Title", "author": "Full Author Name", "reason": "Two sentences: '
+                "first explain what this recommendation shares with the book they just read, "
+                f'then why it suits a club that rated it {average_rating:.1f}/5."' + "}"
+            ),
+        }],
+    )
+    result = _parse_book_json(message.content[0].text)
+    _record_rec(cache_key, result.get("title", ""))
+    return result
 
 
 def get_member_personality(member_name: str, history: list[dict]) -> str:
