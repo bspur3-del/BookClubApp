@@ -342,42 +342,98 @@ def get_nomination_suggestions(theme: str, history: list[dict]) -> list[dict]:
     return _parse_book_list(message.content[0].text)
 
 
+def _verify_trivia_questions(candidates: list[dict]) -> list[dict]:
+    """
+    Re-answer each candidate question independently (without seeing the marked answer)
+    and keep only those where the independent answer matches — catching hallucinated
+    correct answers before they reach the player.
+    """
+    if not candidates:
+        return candidates
+
+    blind = [
+        {"index": i, "book": q["book"], "question": q["question"], "options": q["options"]}
+        for i, q in enumerate(candidates)
+    ]
+
+    msg = _call_with_retry(
+        model="claude-sonnet-4-6",
+        max_tokens=1500,
+        messages=[{
+            "role": "user",
+            "content": (
+                "Answer each trivia question by selecting the correct option. "
+                "Use 0-indexed positions: 0=A, 1=B, 2=C, 3=D.\n\n"
+                "Set 'confident': false for any question where you are not fully certain — "
+                "it is better to mark uncertain than to guess.\n\n"
+                f"Questions:\n{json.dumps(blind, indent=2)}\n\n"
+                "Respond ONLY with a JSON array:\n"
+                '[{"index": 0, "answer": 2, "confident": true}, ...]'
+            ),
+        }],
+    )
+
+    try:
+        verifications = _parse_book_list(msg.content[0].text)
+    except (json.JSONDecodeError, KeyError, ValueError):
+        return candidates  # if verification fails, pass everything through
+
+    verify_map = {
+        v["index"]: v
+        for v in verifications
+        if isinstance(v.get("index"), int)
+    }
+
+    kept = []
+    for i, q in enumerate(candidates):
+        v = verify_map.get(i)
+        if v and v.get("confident") and v.get("answer") == q["correct"]:
+            kept.append(q)
+    return kept
+
+
 def get_trivia_questions(books: list[dict]) -> list[dict]:
-    """Generate 10 multiple-choice trivia questions + 1 harder bonus from the club's reading list."""
+    """
+    Generate trivia questions using a two-pass approach:
+    1. Generate 16 candidate questions.
+    2. Re-answer each one independently and discard any where the answers
+       disagree or confidence is low — eliminating hallucinated facts.
+    """
     if not books:
         raise ValueError("No books to generate trivia from.")
 
     book_list = "\n".join(f'- "{b["title"]}" by {b["author"]}' for b in books[:15])
 
-    message = _call_with_retry(
+    # Pass 1 — generate candidates (extra headroom so filtering can still yield 11)
+    gen_msg = _call_with_retry(
         model="claude-sonnet-4-6",
-        max_tokens=3000,
+        max_tokens=4000,
         messages=[{
             "role": "user",
             "content": (
                 "You are creating a multiple-choice book trivia quiz for a book club.\n\n"
                 f"Books the club has read:\n{book_list}\n\n"
-                "Generate EXACTLY 11 questions:\n"
-                "- Questions 1–10: regular difficulty mix (easy → hard). Each worth 1 point.\n"
-                "- Question 11: one BONUS question — a specific detail only a careful reader would know. Worth 3 points.\n\n"
-                "Rules:\n"
-                "- Every question must be about one of the listed books above — plot, characters, settings, specific events, names, dialogue\n"
-                "- Each question has exactly 4 answer choices (A, B, C, D) — one correct, three plausible wrong answers\n"
-                "- Spread questions across different books when multiple books are listed\n"
-                "- Do NOT ask vague or generic questions — be specific to the actual text\n"
-                "- Wrong answers must be plausible (not obviously silly)\n\n"
-                "ACCURACY IS CRITICAL:\n"
-                "- Only generate questions about facts you are certain are correct.\n"
-                "- Do NOT invent, guess at, or speculate about plot details, character names, specific dialogue, or events.\n"
-                "- If you are uncertain about a specific detail in a book, skip it and choose a different aspect you ARE certain about.\n"
-                "- Prefer questions about major plot events, protagonist names, central themes, and well-established facts.\n"
-                "- Every answer marked as correct MUST actually be correct — double-check before including it.\n\n"
-                'Respond ONLY with a valid JSON array. The "correct" field is the 0-indexed position of the correct answer in the options array:\n'
-                '[{"question": "...", "options": ["A. ...", "B. ...", "C. ...", "D. ..."], "correct": 0, "book": "Title", "bonus": false}]'
+                "Generate exactly 16 questions. Only ask about facts you know with "
+                "complete certainty — main characters, central plot, primary setting, "
+                "key themes. Do NOT invent or guess any detail.\n\n"
+                "- Each question has exactly 4 answer choices (A, B, C, D).\n"
+                "- One choice is correct; three are plausible but wrong.\n"
+                "- Spread questions across different books.\n\n"
+                'Respond ONLY with a valid JSON array. The "correct" field is the '
+                "0-indexed position of the correct answer in the options array:\n"
+                '[{"question": "...", "options": ["A. ...", "B. ...", "C. ...", "D. ..."], "correct": 0, "book": "Title"}]'
             ),
         }],
     )
-    questions = _parse_book_list(message.content[0].text)
-    for i, q in enumerate(questions):
-        q["bonus"] = (i == 10)
-    return questions[:11]
+    candidates = _parse_book_list(gen_msg.content[0].text)
+
+    # Pass 2 — verify by independent answering; discard mismatches
+    verified = _verify_trivia_questions(candidates)
+
+    # Assign bonus flag: last question is the bonus
+    for q in verified:
+        q["bonus"] = False
+    if verified:
+        verified[-1]["bonus"] = True
+
+    return verified[:11]
