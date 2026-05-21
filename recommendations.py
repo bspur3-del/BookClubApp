@@ -437,3 +437,42 @@ def get_trivia_questions(books: list[dict]) -> list[dict]:
         verified[-1]["bonus"] = True
 
     return verified[:11]
+
+
+def get_cocktail_recipe(book_title: str, cabinet: list[str]) -> dict:
+    """Generate a themed cocktail recipe inspired by a book."""
+    cabinet_section = ""
+    if cabinet:
+        items = ", ".join(cabinet)
+        cabinet_section = (
+            f"\nThe person making this has the following in their liquor cabinet: {items}.\n"
+            "Incorporate one or more of these as the base spirit or a key component where they "
+            "genuinely fit the book's tone. Do not force an ingredient that clashes — a good "
+            "thematic fit matters more than using every item listed.\n"
+        )
+
+    message = _call_with_retry(
+        model="claude-sonnet-4-6",
+        max_tokens=1000,
+        messages=[{
+            "role": "user",
+            "content": (
+                f'Create a unique cocktail recipe inspired by the book "{book_title}".\n\n'
+                "The drink should reflect the book's mood, setting, characters, or central themes — "
+                "not just its title. Give it an evocative name a reader of the book would appreciate.\n"
+                f"{cabinet_section}\n"
+                "Respond ONLY with valid JSON:\n"
+                "{\n"
+                '  "cocktail_name": "...",\n'
+                '  "tagline": "One evocative sentence connecting the drink to the book.",\n'
+                '  "glass": "e.g. Rocks glass, Coupe, Highball",\n'
+                '  "ingredients": [{"amount": "2 oz", "item": "bourbon whiskey"}, ...],\n'
+                '  "instructions": ["Step 1...", "Step 2...", "Step 3...", ...],\n'
+                '  "garnish": "...",\n'
+                '  "flavor_profile": "2-3 adjectives, e.g. smoky, bittersweet, bold",\n'
+                '  "theme_note": "2-3 sentences explaining how this drink captures the spirit of the book."\n'
+                "}"
+            ),
+        }],
+    )
+    return _parse_book_json(message.content[0].text)

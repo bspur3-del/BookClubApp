@@ -7,7 +7,7 @@ from recommendations import (
     get_group_recommendation, get_member_recommendation,
     get_member_personality, get_group_personality,
     get_nomination_suggestions, get_boss_character,
-    get_trivia_questions,
+    get_trivia_questions, get_cocktail_recipe,
 )
 from dotenv import load_dotenv
 
@@ -408,6 +408,29 @@ def trivia_questions():
     try:
         questions = get_trivia_questions(books)
         return jsonify(questions)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/pages-and-pours")
+def pages_and_pours():
+    return render_template("pages_and_pours.html")
+
+
+@app.route("/pages-and-pours/recipe")
+def pages_and_pours_recipe():
+    book_title = request.args.get("book", "").strip()
+    cabinet_raw = request.args.get("cabinet", "").strip()
+    if not book_title:
+        return jsonify({"error": "Please enter a book title."}), 400
+    if not app.config["HAS_API_KEY"]:
+        return jsonify({"error": "API key not configured."}), 503
+    cabinet = []
+    if cabinet_raw:
+        cabinet = [i.strip() for i in cabinet_raw.replace("\n", ",").split(",") if i.strip()]
+    try:
+        recipe = get_cocktail_recipe(book_title, cabinet)
+        return jsonify(recipe)
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 

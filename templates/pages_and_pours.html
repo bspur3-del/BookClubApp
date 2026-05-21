@@ -1,0 +1,419 @@
+{% extends "base.html" %}
+{% block title %}Pages & Pours{% endblock %}
+
+{% block extra_head %}
+<style>
+  #pap-wrap { max-width: 680px; margin: 0 auto; }
+
+  .pap-card {
+    background: var(--card-bg);
+    border: 1.5px solid var(--border);
+    border-radius: 4px;
+    box-shadow: 2px 3px 12px rgba(26,18,8,.16);
+    padding: 2rem;
+  }
+
+  .pap-card h1 {
+    font-family: 'Playfair Display', serif;
+    margin-bottom: .25rem;
+  }
+
+  .pap-card .lead {
+    color: var(--ink-faint);
+    font-style: italic;
+    margin-bottom: 1.75rem;
+  }
+
+  /* ── Cabinet toggle ── */
+  #cabinet-toggle {
+    font-family: 'Oswald', sans-serif;
+    font-size: .78rem;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+    background: none;
+    border: none;
+    padding: 0;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    margin-bottom: .5rem;
+  }
+  #cabinet-toggle:hover { color: var(--forest); }
+  #cabinet-toggle .toggle-arrow { transition: transform .2s; display: inline-block; }
+  #cabinet-toggle.open .toggle-arrow { transform: rotate(90deg); }
+
+  #cabinet-wrap { display: none; }
+
+  /* ── Recipe card ── */
+  #recipe-output { margin-top: 2rem; }
+
+  .recipe-card {
+    background: var(--card-bg);
+    border: 1.5px solid var(--border);
+    border-radius: 4px;
+    box-shadow: 2px 3px 12px rgba(26,18,8,.16);
+    overflow: hidden;
+  }
+
+  .recipe-header {
+    background: var(--forest);
+    border-bottom: 3px solid var(--brass);
+    padding: 1.5rem 1.75rem 1.25rem;
+    text-align: center;
+  }
+
+  .recipe-cocktail-name {
+    font-family: 'Playfair Display', serif;
+    font-size: 1.9rem;
+    font-weight: 900;
+    color: var(--parchment);
+    letter-spacing: .03em;
+    line-height: 1.15;
+    margin-bottom: .4rem;
+  }
+
+  .recipe-tagline {
+    font-family: 'IM Fell English', Georgia, serif;
+    font-style: italic;
+    color: rgba(237,224,196,.82);
+    font-size: .95rem;
+    line-height: 1.5;
+  }
+
+  .recipe-meta {
+    display: flex;
+    justify-content: center;
+    gap: 1.5rem;
+    margin-top: 1rem;
+    flex-wrap: wrap;
+  }
+
+  .recipe-meta-item {
+    font-family: 'Oswald', sans-serif;
+    font-size: .72rem;
+    font-weight: 600;
+    letter-spacing: .12em;
+    text-transform: uppercase;
+    color: var(--brass-light);
+    display: flex;
+    align-items: center;
+    gap: 5px;
+  }
+
+  .recipe-body { padding: 1.5rem 1.75rem; }
+
+  .recipe-section-label {
+    font-family: 'Oswald', sans-serif;
+    font-size: .7rem;
+    font-weight: 700;
+    letter-spacing: .2em;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 4px;
+    margin-bottom: .75rem;
+    margin-top: 1.4rem;
+  }
+  .recipe-section-label:first-of-type { margin-top: 0; }
+
+  .ingredients-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: grid;
+    gap: .35rem;
+  }
+
+  .ingredients-list li {
+    display: flex;
+    gap: .6rem;
+    font-size: .95rem;
+    line-height: 1.4;
+  }
+
+  .ing-amount {
+    font-family: 'Oswald', sans-serif;
+    font-weight: 600;
+    font-size: .85rem;
+    color: var(--forest);
+    min-width: 50px;
+    text-align: right;
+    flex-shrink: 0;
+    padding-top: 1px;
+  }
+
+  .ing-item { color: var(--ink); }
+
+  .instructions-list {
+    padding-left: 0;
+    list-style: none;
+    margin: 0;
+    display: grid;
+    gap: .6rem;
+    counter-reset: step;
+  }
+
+  .instructions-list li {
+    counter-increment: step;
+    display: flex;
+    gap: .75rem;
+    font-size: .95rem;
+    line-height: 1.55;
+  }
+
+  .instructions-list li::before {
+    content: counter(step);
+    font-family: 'Playfair Display', serif;
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: var(--brass);
+    min-width: 1.25rem;
+    flex-shrink: 0;
+    line-height: 1.3;
+  }
+
+  .garnish-line {
+    font-size: .93rem;
+    color: var(--ink-light);
+  }
+  .garnish-line strong {
+    font-family: 'Oswald', sans-serif;
+    font-size: .78rem;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+    font-weight: 600;
+    margin-right: 6px;
+  }
+
+  .flavor-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: .4rem;
+    margin-top: .1rem;
+  }
+
+  .flavor-chip {
+    font-family: 'Oswald', sans-serif;
+    font-size: .72rem;
+    font-weight: 600;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    background: var(--parchment-dark);
+    border: 1px solid var(--border);
+    border-radius: 2px;
+    padding: 3px 9px;
+    color: var(--ink-faint);
+  }
+
+  .theme-note {
+    background: var(--parchment-dark);
+    border-left: 3px solid var(--brass);
+    border-radius: 0 3px 3px 0;
+    padding: .85rem 1rem;
+    font-style: italic;
+    font-size: .93rem;
+    color: var(--ink-light);
+    line-height: 1.65;
+    margin-top: 1.4rem;
+  }
+
+  /* ── Spinner ── */
+  .pap-spinner {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: .75rem;
+    padding: 3rem;
+    color: var(--ink-faint);
+    font-style: italic;
+  }
+  .pap-spinner .spinner-border {
+    color: var(--forest);
+    width: 2.5rem;
+    height: 2.5rem;
+  }
+
+  /* ── New recipe button ── */
+  #new-recipe-btn {
+    margin-top: 1.25rem;
+  }
+
+  @media (max-width: 480px) {
+    .recipe-cocktail-name { font-size: 1.45rem; }
+    .recipe-body { padding: 1.25rem; }
+    .pap-card { padding: 1.25rem; }
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div id="pap-wrap">
+
+  <!-- ── Input card ── -->
+  <div class="pap-card">
+    <h1>🍹 Pages &amp; Pours</h1>
+    <p class="lead">Enter a book and we'll craft a cocktail to match its spirit.</p>
+
+    <div class="mb-3">
+      <label for="book-input" class="form-label">Book Title</label>
+      <input id="book-input" type="text" class="form-control form-control-lg"
+             placeholder="e.g. Moby Dick, The Great Gatsby…"
+             autocomplete="off" spellcheck="false">
+    </div>
+
+    <!-- Optional cabinet section -->
+    <button id="cabinet-toggle" type="button" aria-expanded="false"
+            onclick="toggleCabinet()">
+      <span class="toggle-arrow">▶</span>
+      What's in your liquor cabinet? (optional)
+    </button>
+    <div id="cabinet-wrap">
+      <textarea id="cabinet-input" class="form-control" rows="3"
+                placeholder="e.g. bourbon, gin, triple sec, elderflower liqueur&#10;Separate with commas or new lines."
+                style="font-size:.9rem; resize:vertical;"></textarea>
+      <div class="form-text" style="font-size:.78rem; color:var(--ink-faint); margin-top:.3rem;">
+        We'll try to work these into the recipe where they fit the book's mood.
+      </div>
+    </div>
+
+    <div class="mt-3 d-flex align-items-center gap-3 flex-wrap">
+      <button id="pour-btn" class="btn btn-primary btn-lg px-4" onclick="generateRecipe()">
+        Pour Me a Recipe
+      </button>
+      <div id="input-error" class="text-danger" style="display:none; font-size:.9rem;"></div>
+    </div>
+  </div>
+
+  <!-- ── Recipe output ── -->
+  <div id="recipe-output"></div>
+
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+function toggleCabinet() {
+  const btn = document.getElementById("cabinet-toggle");
+  const wrap = document.getElementById("cabinet-wrap");
+  const open = btn.classList.toggle("open");
+  btn.setAttribute("aria-expanded", open);
+  wrap.style.display = open ? "block" : "none";
+}
+
+async function generateRecipe() {
+  const bookInput = document.getElementById("book-input");
+  const book = bookInput.value.trim();
+  const errEl = document.getElementById("input-error");
+
+  if (!book) {
+    errEl.textContent = "Please enter a book title.";
+    errEl.style.display = "";
+    bookInput.focus();
+    return;
+  }
+  errEl.style.display = "none";
+
+  const cabinet = document.getElementById("cabinet-input").value.trim();
+  const btn = document.getElementById("pour-btn");
+  btn.disabled = true;
+
+  const output = document.getElementById("recipe-output");
+  output.innerHTML = `
+    <div class="pap-spinner">
+      <div class="spinner-border"></div>
+      <span>Mixing your cocktail&hellip;</span>
+    </div>`;
+
+  try {
+    const params = new URLSearchParams({ book });
+    if (cabinet) params.set("cabinet", cabinet);
+    const res = await fetch("/pages-and-pours/recipe?" + params);
+    const data = await res.json();
+
+    if (!res.ok || data.error) {
+      output.innerHTML = `<div class="alert alert-danger mt-3">${escHtml(data.error || "Something went wrong.")}</div>`;
+      return;
+    }
+    renderRecipe(data, book);
+  } catch {
+    output.innerHTML = `<div class="alert alert-danger mt-3">Failed to connect. Check your API key and try again.</div>`;
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+function renderRecipe(d, bookTitle) {
+  const ingredients = (d.ingredients || []).map(ing => `
+    <li>
+      <span class="ing-amount">${escHtml(ing.amount)}</span>
+      <span class="ing-item">${escHtml(ing.item)}</span>
+    </li>`).join("");
+
+  const instructions = (d.instructions || []).map(step => `
+    <li>${escHtml(step)}</li>`).join("");
+
+  const chips = (d.flavor_profile || "")
+    .split(/[,·•]+/)
+    .map(s => s.trim())
+    .filter(Boolean)
+    .map(s => `<span class="flavor-chip">${escHtml(s)}</span>`)
+    .join("");
+
+  document.getElementById("recipe-output").innerHTML = `
+    <div class="recipe-card">
+      <div class="recipe-header">
+        <div class="recipe-cocktail-name">${escHtml(d.cocktail_name || "Untitled Cocktail")}</div>
+        <div class="recipe-tagline">${escHtml(d.tagline || "")}</div>
+        <div class="recipe-meta">
+          <span class="recipe-meta-item">🥃 ${escHtml(d.glass || "")}</span>
+          ${d.garnish ? `<span class="recipe-meta-item">🍋 ${escHtml(d.garnish)}</span>` : ""}
+        </div>
+      </div>
+
+      <div class="recipe-body">
+
+        <div class="recipe-section-label">Ingredients</div>
+        <ul class="ingredients-list">${ingredients}</ul>
+
+        <div class="recipe-section-label">Instructions</div>
+        <ol class="instructions-list">${instructions}</ol>
+
+        ${chips ? `
+        <div class="recipe-section-label">Flavor Profile</div>
+        <div class="flavor-chips">${chips}</div>` : ""}
+
+        ${d.theme_note ? `<div class="theme-note">📖 ${escHtml(d.theme_note)}</div>` : ""}
+
+      </div>
+    </div>
+
+    <div class="text-center" id="new-recipe-btn">
+      <button class="btn btn-outline-secondary" onclick="resetForm()">
+        ↩ Try Another Book
+      </button>
+    </div>`;
+}
+
+function resetForm() {
+  document.getElementById("recipe-output").innerHTML = "";
+  document.getElementById("book-input").value = "";
+  document.getElementById("cabinet-input").value = "";
+  document.getElementById("book-input").focus();
+}
+
+function escHtml(str) {
+  return String(str || "")
+    .replace(/&/g, "&amp;").replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+}
+
+// Submit on Enter in the book title field
+document.getElementById("book-input").addEventListener("keydown", e => {
+  if (e.key === "Enter") generateRecipe();
+});
+</script>
+{% endblock %}
