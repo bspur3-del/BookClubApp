@@ -33,6 +33,9 @@
           <li class="nav-item">
             <a class="nav-link{% if request.endpoint == 'trivia' %} active{% endif %}" href="{{ url_for('trivia') }}">📚 Trivia</a>
           </li>
+          <li class="nav-item">
+            <a class="nav-link{% if request.endpoint == 'pages_and_pours' %} active{% endif %}" href="{{ url_for('pages_and_pours') }}">🍹 Pages & Pours</a>
+          </li>
         </ul>
       </div>
     </div>
