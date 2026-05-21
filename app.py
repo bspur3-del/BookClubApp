@@ -4,7 +4,7 @@ from flask import Flask, render_template, request, redirect, url_for, flash, jso
 from flask_migrate import Migrate
 from models import db, Member, Book, Rating, PastBook, PastBookRating, APPROVAL_THRESHOLD
 from recommendations import (
-    get_group_recommendation, get_member_recommendation,
+    get_group_recommendation, get_member_recommendation, get_book_recommendation,
     get_member_personality, get_group_personality,
     get_nomination_suggestions, get_boss_character,
     get_trivia_questions, get_cocktail_recipe,
@@ -295,17 +295,9 @@ def book_recommend(book_id):
     book = Book.query.get_or_404(book_id)
     if not book.ratings:
         return jsonify({"error": "No ratings yet for this book."})
-    history = []
-    for b in Book.query.all():
-        if b.ratings:
-            avg = b.average()
-            history.append({"title": b.title, "author": b.author,
-                            "average_rating": round(avg, 2), "approved": b.is_approved})
-    for pb in PastBook.query.all():
-        history.append({"title": pb.title, "author": pb.author,
-                        "average_rating": round(pb.average_rating, 2), "approved": pb.is_approved})
     try:
-        rec = get_group_recommendation(history)
+        rec = get_book_recommendation(book.title, book.author,
+                                      round(book.average(), 2), book.is_approved)
     except Exception as e:
         return jsonify({"error": str(e)}), 500
     return jsonify(rec)
