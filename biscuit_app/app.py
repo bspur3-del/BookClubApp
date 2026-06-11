@@ -45,7 +45,7 @@ def get_member_names():
     return [m.name for m in Member.query.order_by(Member.name).all()]
 
 
-# ── Index ──────────────────────────────────────────────────────────────────────
+# ── Index ───────────────────────────────────────────────────────────
 
 @app.route("/")
 def index():
@@ -71,7 +71,7 @@ def index():
                            members=members, today=today, has_rated=has_rated)
 
 
-# ── Members ────────────────────────────────────────────────────────────────────
+# ── Members ──────────────────────────────────────────────────────────
 
 @app.route("/members/add", methods=["POST"])
 def add_member():
@@ -162,13 +162,27 @@ def group_ai():
         return jsonify({"error": str(e)}), 500
 
 
-# ── Visits ─────────────────────────────────────────────────────────────────────
+@app.route("/scripture")
+def get_scripture():
+    ref = request.args.get("ref", "").strip()
+    if not ref:
+        return jsonify({"error": "No reference provided."}), 400
+    if not os.environ.get("ANTHROPIC_API_KEY"):
+        return jsonify({"error": "API key not configured."}), 503
+    try:
+        from ai import get_scripture_text
+        return jsonify({"text": get_scripture_text(ref)})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+# ── Visits ──────────────────────────────────────────────────────────────
 
 @app.route("/visit/add", methods=["POST"])
 def add_visit():
     restaurant_name = request.form.get("restaurant_name", "").strip()
     visit_date_str = request.form.get("visit_date", "").strip()
-    notes = request.form.get("notes", "").strip()
+    scripture = request.form.get("notes", "").strip()
     if not restaurant_name or not visit_date_str:
         flash("Restaurant name and date are required.", "danger")
         return redirect(url_for("index"))
@@ -180,7 +194,7 @@ def add_visit():
     db.session.add(BiscuitVisit(
         restaurant_name=restaurant_name,
         visit_date=visit_date,
-        notes=notes or None,
+        notes=scripture or None,
     ))
     db.session.commit()
     flash(f'Visit to "{restaurant_name}" logged!', "success")

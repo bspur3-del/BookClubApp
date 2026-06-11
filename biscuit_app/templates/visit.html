@@ -2,15 +2,31 @@
 {% block title %}{{ visit.restaurant_name }} - Ratings{% endblock %}
 
 {% block content %}
+
+{% if visit.notes %}
+<div class="card mb-4 scripture-card">
+  <div class="card-body">
+    <div class="scripture-ref">&#128214; Scripture Read &mdash; {{ visit.notes }}</div>
+    <div id="scriptureText" class="scripture-text">
+      <span class="spinner-border spinner-border-sm me-2"></span>Loading NIV text&hellip;
+    </div>
+  </div>
+</div>
+{% endif %}
+
 <div class="row g-4">
 
   <div class="col-lg-8">
     <div class="d-flex align-items-start justify-content-between mb-4">
       <div>
         <a href="{{ url_for('index') }}" class="text-muted small text-decoration-none">&larr; Back to all visits</a>
-        <h1 class="page-heading mt-1 mb-0">{{ visit.restaurant_name }}</h1>
-        <p class="text-muted mt-1 mb-0">&#128197; {{ visit.visit_date.strftime('%B %d, %Y') }}</p>
-        {% if visit.notes %}<p class="fst-italic text-muted small mt-1 mb-0">{{ visit.notes }}</p>{% endif %}
+        <div class="d-flex align-items-center gap-3 mt-2">
+          <img class="restaurant-logo-lg" data-restaurant="{{ visit.restaurant_name }}" alt="">
+          <div>
+            <h1 class="page-heading mb-0">{{ visit.restaurant_name }}</h1>
+            <p class="text-muted mt-1 mb-0">&#128197; {{ visit.visit_date.strftime('%B %d, %Y') }}</p>
+          </div>
+        </div>
       </div>
       <form method="POST" action="{{ url_for('delete_visit', visit_id=visit.id) }}"
             onsubmit="return confirm('Delete this visit and all its ratings?')">
@@ -33,7 +49,7 @@
               <span class="star {% if i <= group_score|round(0, 'floor') %}filled{% endif %}">&#9733;</span>
             {% endfor %}
           </div>
-          <div class="small text-muted mt-2">Based on {{ visit.ratings|length }} of 5 ratings</div>
+          <div class="small text-muted mt-2">Based on {{ visit.ratings|length }} of {{ members|length }} ratings</div>
         </div>
         <div class="row g-2">
           {% for cat in categories %}
@@ -175,5 +191,18 @@ document.getElementById('ratingForm').addEventListener('submit', function(e) {
     }
   }
 });
+
+{% if visit.notes %}
+fetch("/scripture?ref=" + encodeURIComponent("{{ visit.notes }}"))
+  .then(r => r.json())
+  .then(data => {
+    document.getElementById('scriptureText').innerHTML = data.error
+      ? '<span class="text-muted small">' + data.error + '</span>'
+      : data.text.replace(/\n/g, '<br>');
+  })
+  .catch(() => {
+    document.getElementById('scriptureText').textContent = 'Could not load scripture.';
+  });
+{% endif %}
 </script>
 {% endblock %}
