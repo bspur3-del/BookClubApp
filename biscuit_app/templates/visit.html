@@ -1,0 +1,179 @@
+{% extends "base.html" %}
+{% block title %}{{ visit.restaurant_name }} - Ratings{% endblock %}
+
+{% block content %}
+<div class="row g-4">
+
+  <div class="col-lg-8">
+    <div class="d-flex align-items-start justify-content-between mb-4">
+      <div>
+        <a href="{{ url_for('index') }}" class="text-muted small text-decoration-none">&larr; Back to all visits</a>
+        <h1 class="page-heading mt-1 mb-0">{{ visit.restaurant_name }}</h1>
+        <p class="text-muted mt-1 mb-0">&#128197; {{ visit.visit_date.strftime('%B %d, %Y') }}</p>
+        {% if visit.notes %}<p class="fst-italic text-muted small mt-1 mb-0">{{ visit.notes }}</p>{% endif %}
+      </div>
+      <form method="POST" action="{{ url_for('delete_visit', visit_id=visit.id) }}"
+            onsubmit="return confirm('Delete this visit and all its ratings?')">
+        <button type="submit" class="btn btn-outline-danger btn-sm">Delete Visit</button>
+      </form>
+    </div>
+
+    {% set group_score = visit.group_overall() %}
+    {% set cat_avgs = visit.category_averages() %}
+
+    {% if group_score is not none %}
+    <div class="card mb-4">
+      <div class="card-header">Group Results</div>
+      <div class="card-body">
+        <div class="text-center mb-4">
+          <div class="display-score">{{ "%.2f"|format(group_score) }}</div>
+          <div class="text-muted mt-1">Overall Group Rating / 5.00</div>
+          <div class="stars mt-2">
+            {% for i in range(1, 6) %}
+              <span class="star {% if i <= group_score|round(0, 'floor') %}filled{% endif %}">&#9733;</span>
+            {% endfor %}
+          </div>
+          <div class="small text-muted mt-2">Based on {{ visit.ratings|length }} of 5 ratings</div>
+        </div>
+        <div class="row g-2">
+          {% for cat in categories %}
+            <div class="col-6 col-md-4">
+              <div class="category-avg-card">
+                <div class="category-label">{{ category_labels[cat] }}</div>
+                <div class="category-score">{{ "%.1f"|format(cat_avgs[cat]) }}</div>
+                <div class="progress mt-1" style="height:5px;">
+                  <div class="progress-bar" style="width:{{ (cat_avgs[cat] / 5 * 100)|int }}%; background:var(--gold);"></div>
+                </div>
+              </div>
+            </div>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+    {% endif %}
+
+    {% if visit.ratings %}
+    <div class="card mb-4">
+      <div class="card-header">Individual Ratings</div>
+      <div class="table-responsive">
+        <table class="table table-sm mb-0 ratings-table">
+          <thead>
+            <tr>
+              <th>Member</th>
+              {% for cat in categories %}<th class="text-center">{{ category_labels[cat] }}</th>{% endfor %}
+              <th class="text-center">Overall</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for rating in visit.ratings|sort(attribute='member_name') %}
+            <tr>
+              <td><span class="member-avatar sm">{{ rating.member_name[0] }}</span> {{ rating.member_name }}</td>
+              {% for cat in categories %}
+                <td class="text-center"><span class="inline-star">{{ rating[cat] }}&#9733;</span></td>
+              {% endfor %}
+              <td class="text-center fw-bold gold-text">{{ "%.1f"|format(rating.overall()) }}</td>
+              <td class="text-center">
+                <form method="POST" action="{{ url_for('delete_rating', visit_id=visit.id, member_name=rating.member_name) }}"
+                      onsubmit="return confirm('Remove rating?')" class="d-inline">
+                  <button type="submit" class="btn btn-link btn-sm text-danger p-0">&#10005;</button>
+                </form>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+    {% else %}
+    <div class="empty-state text-center py-4">
+      <p class="text-muted">No ratings yet. Be the first to rate this visit!</p>
+    </div>
+    {% endif %}
+  </div>
+
+  <div class="col-lg-4">
+    <div class="card">
+      <div class="card-header">Submit Your Rating</div>
+      <div class="card-body">
+        <form method="POST" action="{{ url_for('rate_visit', visit_id=visit.id) }}" id="ratingForm">
+          <div class="mb-3">
+            <label class="form-label">Who are you?</label>
+            <select name="member_name" class="form-select" id="memberSelect" required>
+              <option value="">Select your name...</option>
+              {% for member in members %}
+                <option value="{{ member }}">{{ member }}{% if member in existing %} (update){% endif %}</option>
+              {% endfor %}
+            </select>
+          </div>
+          {% for cat in categories %}
+          <div class="mb-3">
+            <label class="form-label d-flex justify-content-between">
+              <span>{{ category_labels[cat] }}</span>
+              <span class="rating-value" id="val_{{ cat }}"></span>
+            </label>
+            <div class="star-picker" data-cat="{{ cat }}">
+              {% for i in range(1, 6) %}
+                <span class="star-btn" data-value="{{ i }}">&#9733;</span>
+              {% endfor %}
+              <input type="hidden" name="{{ cat }}" id="input_{{ cat }}" value="">
+            </div>
+            <div class="small text-muted mt-1" id="hint_{{ cat }}"></div>
+          </div>
+          {% endfor %}
+          <button type="submit" class="btn btn-primary w-100 mt-2">Save Rating</button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+const HINTS = ["", "Bad", "Below Average", "Average", "Good", "Exceptional"];
+
+document.querySelectorAll('.star-picker').forEach(picker => {
+  const cat = picker.dataset.cat;
+  const stars = picker.querySelectorAll('.star-btn');
+  const input = document.getElementById('input_' + cat);
+  const valLabel = document.getElementById('val_' + cat);
+  const hint = document.getElementById('hint_' + cat);
+
+  stars.forEach((star, idx) => {
+    star.addEventListener('mouseenter', () => {
+      stars.forEach((s, i) => s.classList.toggle('hover', i <= idx));
+    });
+    star.addEventListener('mouseleave', () => {
+      stars.forEach(s => s.classList.remove('hover'));
+      const cur = parseInt(input.value);
+      if (cur) stars.forEach((s, i) => s.classList.toggle('active', i < cur));
+    });
+    star.addEventListener('click', () => {
+      const val = idx + 1;
+      input.value = val;
+      stars.forEach((s, i) => s.classList.toggle('active', i < val));
+      if (valLabel) valLabel.textContent = val + '/5';
+      if (hint) hint.textContent = HINTS[val];
+    });
+  });
+});
+
+document.getElementById('ratingForm').addEventListener('submit', function(e) {
+  if (!document.getElementById('memberSelect').value) {
+    e.preventDefault();
+    alert('Please select your name.');
+    return;
+  }
+  const cats = ['taste', 'texture', 'biscuit', 'chicken', 'presentation'];
+  for (const cat of cats) {
+    if (!document.getElementById('input_' + cat).value) {
+      e.preventDefault();
+      alert('Please rate all 5 categories before saving.');
+      return;
+    }
+  }
+});
+</script>
+{% endblock %}

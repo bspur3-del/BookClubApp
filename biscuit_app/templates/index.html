@@ -1,0 +1,134 @@
+{% extends "base.html" %}
+{% block title %}Home - Chicken Biscuit Ratings{% endblock %}
+
+{% block content %}
+<div class="row g-4">
+
+  <div class="col-lg-8">
+    <div class="d-flex align-items-center justify-content-between mb-3">
+      <h2 class="page-heading mb-0">Weekly Visits</h2>
+      <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addVisitModal">+ Log a Visit</button>
+    </div>
+
+    {% if visits %}
+      <div class="d-flex flex-column gap-3">
+        {% for visit in visits %}
+          {% set score = visit.group_overall() %}
+          {% set rated_count = visit.ratings|length %}
+          <a href="{{ url_for('visit_detail', visit_id=visit.id) }}" class="text-decoration-none">
+            <div class="card visit-card">
+              <div class="card-body">
+                <div class="d-flex justify-content-between align-items-start">
+                  <div>
+                    <h5 class="card-title mb-1">{{ visit.restaurant_name }}</h5>
+                    <p class="text-muted small mb-1">&#128197; {{ visit.visit_date.strftime('%B %d, %Y') }}</p>
+                    {% if visit.notes %}
+                      <p class="small fst-italic text-muted mb-0">{{ visit.notes }}</p>
+                    {% endif %}
+                  </div>
+                  <div class="text-end ms-3">
+                    {% if score is not none %}
+                      <div class="score-badge">{{ "%.2f"|format(score) }}</div>
+                      <div class="score-sub">/ 5.00 group avg</div>
+                      <div class="stars mt-1">
+                        {% for i in range(1, 6) %}
+                          <span class="star {% if i <= score|round(0, 'floor') %}filled{% endif %}">&#9733;</span>
+                        {% endfor %}
+                      </div>
+                      <p class="small text-muted mt-1 mb-0">{{ rated_count }} of 5 rated</p>
+                    {% else %}
+                      <span class="badge bg-secondary">No ratings yet</span>
+                      <p class="small text-muted mt-1 mb-0">{{ rated_count }} of 5 rated</p>
+                    {% endif %}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </a>
+        {% endfor %}
+      </div>
+    {% else %}
+      <div class="empty-state text-center py-5">
+        <div style="font-size:4rem;">&#127831;</div>
+        <h4 class="mt-3">No visits yet</h4>
+        <p class="text-muted">Log your first chicken biscuit run to get started.</p>
+        <button class="btn btn-primary mt-2" data-bs-toggle="modal" data-bs-target="#addVisitModal">Log a Visit</button>
+      </div>
+    {% endif %}
+  </div>
+
+  <div class="col-lg-4">
+    <h2 class="page-heading mb-3">Leaderboard</h2>
+    <div class="card">
+      <div class="card-body p-0">
+        {% if leaderboard %}
+          <div class="list-group list-group-flush">
+            {% for entry in leaderboard %}
+              <div class="list-group-item leaderboard-item">
+                <div class="d-flex align-items-center gap-2">
+                  <span class="rank-badge {% if loop.index == 1 %}gold{% elif loop.index == 2 %}silver{% elif loop.index == 3 %}bronze{% endif %}">{{ loop.index }}</span>
+                  <div class="flex-grow-1">
+                    <div class="fw-semibold">{{ entry.name }}</div>
+                    <div class="small text-muted">{{ entry.visits }} visit{{ 's' if entry.visits != 1 }}</div>
+                  </div>
+                  <span class="score-badge-sm">{{ "%.2f"|format(entry.avg) }}</span>
+                </div>
+              </div>
+            {% endfor %}
+          </div>
+        {% else %}
+          <div class="text-center py-4">
+            <p class="text-muted mb-0 small">Rate some visits to see the leaderboard.</p>
+          </div>
+        {% endif %}
+      </div>
+    </div>
+
+    <div class="card mt-3">
+      <div class="card-header">The Crew</div>
+      <div class="card-body p-0">
+        <ul class="list-group list-group-flush">
+          {% for member in members %}
+            <li class="list-group-item d-flex align-items-center gap-2">
+              <span class="member-avatar">{{ member[0] }}</span>
+              {{ member }}
+            </li>
+          {% endfor %}
+        </ul>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<div class="modal fade" id="addVisitModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Log a Chicken Biscuit Visit</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <form method="POST" action="{{ url_for('add_visit') }}">
+        <div class="modal-body">
+          <div class="mb-3">
+            <label class="form-label">Restaurant Name</label>
+            <input type="text" name="restaurant_name" class="form-control" placeholder="e.g. Chick-fil-A, Brother Juniper's..." required>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Visit Date</label>
+            <input type="date" name="visit_date" class="form-control" value="{{ today }}" required>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Notes (optional)</label>
+            <textarea name="notes" class="form-control" rows="2" placeholder="Location, time, any context..."></textarea>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-primary">Log Visit</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}
