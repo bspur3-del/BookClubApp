@@ -27,7 +27,7 @@ const RESTAURANT_DOMAINS = {
 };
 
 document.addEventListener('DOMContentLoaded', () => {
-  document.querySelectorAll('img.restaurant-logo, img.restaurant-logo-lg').forEach(img => {
+  document.querySelectorAll('img.restaurant-logo, img.restaurant-logo-md, img.restaurant-logo-lg').forEach(img => {
     const name = img.dataset.restaurant;
     if (!name) return;
 
