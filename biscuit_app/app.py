@@ -26,14 +26,20 @@ with app.app_context():
     from sqlalchemy import inspect as sa_inspect, text
     with db.engine.connect() as _conn:
         _tables = sa_inspect(_conn).get_table_names()
-        if 'members' in _tables and 'alembic_version' not in _tables:
-            _conn.execute(text(
-                "CREATE TABLE alembic_version "
-                "(version_num VARCHAR(32) NOT NULL, "
-                "CONSTRAINT alembic_version_pkc PRIMARY KEY (version_num))"
-            ))
-            _conn.execute(text("INSERT INTO alembic_version (version_num) VALUES ('001')"))
-            _conn.commit()
+        if 'members' in _tables:
+            if 'alembic_version' not in _tables:
+                _conn.execute(text(
+                    "CREATE TABLE alembic_version "
+                    "(version_num VARCHAR(32) NOT NULL, "
+                    "CONSTRAINT alembic_version_pkc PRIMARY KEY (version_num))"
+                ))
+                _conn.execute(text("INSERT INTO alembic_version (version_num) VALUES ('001')"))
+                _conn.commit()
+            else:
+                _row = _conn.execute(text("SELECT version_num FROM alembic_version")).fetchone()
+                if _row is None:
+                    _conn.execute(text("INSERT INTO alembic_version (version_num) VALUES ('001')"))
+                    _conn.commit()
     if Member.query.count() == 0:
         for name in DEFAULT_MEMBERS:
             db.session.add(Member(name=name))
