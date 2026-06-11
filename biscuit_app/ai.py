@@ -87,20 +87,3 @@ def get_group_taste_profile(member_data: list) -> str:
         messages=[{"role": "user", "content": prompt}],
     )
     return response.content[0].text.strip()
-
-
-def get_scripture_text(reference: str) -> str:
-    response = _client().messages.create(
-        model=MODEL,
-        max_tokens=600,
-        messages=[{
-            "role": "user",
-            "content": (
-                f"Please provide the exact NIV (New International Version) text of {reference}. "
-                f"Output only the scripture text itself with no additional commentary, "
-                f"introduction, explanation, or quotation marks. "
-                f"If it spans multiple verses, include all of them with verse numbers."
-            )
-        }],
-    )
-    return response.content[0].text.strip()

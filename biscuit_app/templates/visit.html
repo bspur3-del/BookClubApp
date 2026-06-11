@@ -3,17 +3,6 @@
 
 {% block content %}
 
-{% if visit.notes %}
-<div class="card mb-4 scripture-card">
-  <div class="card-body">
-    <div class="scripture-ref">&#128214; Scripture Read &mdash; {{ visit.notes }}</div>
-    <div id="scriptureText" class="scripture-text">
-      <span class="spinner-border spinner-border-sm me-2"></span>Loading NIV text&hellip;
-    </div>
-  </div>
-</div>
-{% endif %}
-
 <div class="row g-4">
 
   <div class="col-lg-8">
@@ -192,17 +181,5 @@ document.getElementById('ratingForm').addEventListener('submit', function(e) {
   }
 });
 
-{% if visit.notes %}
-fetch("/scripture?ref=" + encodeURIComponent("{{ visit.notes }}"))
-  .then(r => r.json())
-  .then(data => {
-    document.getElementById('scriptureText').innerHTML = data.error
-      ? '<span class="text-muted small">' + data.error + '</span>'
-      : data.text.replace(/\n/g, '<br>');
-  })
-  .catch(() => {
-    document.getElementById('scriptureText').textContent = 'Could not load scripture.';
-  });
-{% endif %}
 </script>
 {% endblock %}
