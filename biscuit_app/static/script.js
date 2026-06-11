@@ -26,30 +26,25 @@ const RESTAURANT_DOMAINS = {
   "cracker barrel": "crackerbarrel.com",
 };
 
+function loadLogo(img, sources) {
+  if (!sources.length) { img.style.display = 'none'; return; }
+  const [src, ...rest] = sources;
+  img.onload  = () => { img.style.display = 'inline-block'; };
+  img.onerror = () => loadLogo(img, rest);
+  img.src = src;
+}
+
 document.addEventListener('DOMContentLoaded', () => {
   document.querySelectorAll('img.restaurant-logo, img.restaurant-logo-md, img.restaurant-logo-lg').forEach(img => {
     const name = img.dataset.restaurant;
     if (!name) return;
 
     const lower = name.toLowerCase().trim();
-    const knownDomain = RESTAURANT_DOMAINS[lower];
-    const inferredDomain = lower.replace(/[^a-z0-9]/g, '') + '.com';
-    const domain = knownDomain || inferredDomain;
+    const domain = RESTAURANT_DOMAINS[lower] || (lower.replace(/[^a-z0-9]/g, '') + '.com');
 
-    img.src = `https://logo.clearbit.com/${domain}`;
-    img.style.display = 'inline-block';
-    img.onerror = () => {
-      fetch(`https://autocomplete.clearbit.com/v1/companies/suggest?query=${encodeURIComponent(name)}`)
-        .then(r => r.json())
-        .then(data => {
-          if (data && data.length > 0 && data[0].logo) {
-            img.onerror = () => { img.style.display = 'none'; };
-            img.src = data[0].logo;
-          } else {
-            img.style.display = 'none';
-          }
-        })
-        .catch(() => { img.style.display = 'none'; });
-    };
+    loadLogo(img, [
+      `https://logo.clearbit.com/${domain}`,
+      `https://t2.gstatic.com/faviconV2?client=SOCIAL&type=FAVICON&fallback_opts=TYPE,SIZE,URL&url=https://${domain}&size=128`,
+    ]);
   });
 });
