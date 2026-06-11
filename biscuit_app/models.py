@@ -2,7 +2,13 @@ from flask_sqlalchemy import SQLAlchemy
 
 db = SQLAlchemy()
 
-MEMBERS = ['Blake', 'Nick', 'Andrew', 'Jermaine', 'Jordan']
+DEFAULT_MEMBERS = ['Andrew', 'Blake', 'Jermaine', 'Jordan', 'Nick', 'Zack']
+
+
+class Member(db.Model):
+    __tablename__ = 'members'
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(100), nullable=False, unique=True)
 
 
 class BiscuitVisit(db.Model):
@@ -29,9 +35,6 @@ class BiscuitVisit(db.Model):
             'chicken': round(sum(r.chicken for r in self.ratings) / n, 2),
             'presentation': round(sum(r.presentation for r in self.ratings) / n, 2),
         }
-
-    def members_rated(self):
-        return [r.member_name for r in self.ratings]
 
 
 class BiscuitRating(db.Model):

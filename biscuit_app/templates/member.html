@@ -1,0 +1,129 @@
+{% extends "base.html" %}
+{% block title %}{{ member.name }} - Taste Profile{% endblock %}
+
+{% block content %}
+<div class="mb-4">
+  <a href="{{ url_for('index') }}" class="text-muted small text-decoration-none">&larr; Back</a>
+  <div class="d-flex align-items-center gap-3 mt-2">
+    <span class="member-avatar-lg">{{ member.name[0] }}</span>
+    <div>
+      <h1 class="page-heading mb-0">{{ member.name }}</h1>
+      <p class="text-muted small mb-0">{{ visits_rated|length }} visit{{ 's' if visits_rated|length != 1 }} rated</p>
+    </div>
+  </div>
+</div>
+
+{% if cat_avgs %}
+
+<div class="card mb-4">
+  <div class="card-header">Category Averages</div>
+  <div class="card-body">
+    <div class="row g-2">
+      {% for cat in categories %}
+        <div class="col-6 col-md-4">
+          <div class="category-avg-card">
+            <div class="category-label">{{ category_labels[cat] }}</div>
+            <div class="category-score">{{ "%.1f"|format(cat_avgs[cat]) }}</div>
+            <div class="progress mt-1" style="height:5px;">
+              <div class="progress-bar" style="width:{{ (cat_avgs[cat] / 5 * 100)|int }}%; background:var(--gold);"></div>
+            </div>
+          </div>
+        </div>
+      {% endfor %}
+      {% set overall_avg = (cat_avgs['taste'] + cat_avgs['texture'] + cat_avgs['biscuit'] + cat_avgs['chicken'] + cat_avgs['presentation']) / 5 %}
+      <div class="col-6 col-md-4">
+        <div class="category-avg-card" style="border-color:var(--gold);">
+          <div class="category-label">Avg Overall</div>
+          <div class="category-score gold-text">{{ "%.1f"|format(overall_avg) }}</div>
+          <div class="progress mt-1" style="height:5px;">
+            <div class="progress-bar" style="width:{{ (overall_avg / 5 * 100)|int }}%; background:var(--gold);"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% if has_api_key %}
+<div class="row g-3 mb-4">
+  <div class="col-md-6">
+    <div class="card h-100">
+      <div class="card-header">Taste Profile</div>
+      <div class="card-body" id="profileBody">
+        <div class="text-muted small"><span class="spinner-border spinner-border-sm me-2"></span>Analyzing {{ member.name }}'s palate&hellip;</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-6">
+    <div class="card h-100">
+      <div class="card-header">&#127831; Perfect Biscuit</div>
+      <div class="card-body" id="perfectBody">
+        <div class="text-muted small"><span class="spinner-border spinner-border-sm me-2"></span>Crafting the perfect biscuit&hellip;</div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endif %}
+
+<div class="card">
+  <div class="card-header">Rating History</div>
+  <div class="table-responsive">
+    <table class="table table-sm mb-0 ratings-table">
+      <thead>
+        <tr>
+          <th>Restaurant</th>
+          <th>Date</th>
+          {% for cat in categories %}<th class="text-center">{{ category_labels[cat] }}</th>{% endfor %}
+          <th class="text-center">Overall</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for item in visits_rated %}
+        <tr>
+          <td>
+            <a href="{{ url_for('visit_detail', visit_id=item.visit.id) }}" class="text-decoration-none gold-text">
+              {{ item.visit.restaurant_name }}
+            </a>
+          </td>
+          <td class="text-muted small">{{ item.visit.visit_date.strftime('%b %d, %Y') }}</td>
+          {% for cat in categories %}
+            <td class="text-center"><span class="inline-star">{{ item.rating[cat] }}&#9733;</span></td>
+          {% endfor %}
+          <td class="text-center fw-bold gold-text">{{ "%.1f"|format(item.rating.overall()) }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+{% else %}
+<div class="empty-state text-center py-5">
+  <div style="font-size:3rem;">&#127831;</div>
+  <h4 class="mt-3">No ratings yet</h4>
+  <p class="text-muted">{{ member.name }} hasn't rated any visits yet.</p>
+  <a href="{{ url_for('index') }}" class="btn btn-primary mt-2">Back to Visits</a>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block extra_scripts %}
+{% if has_api_key and cat_avgs %}
+<script>
+fetch("{{ url_for('member_ai', member_name=member.name) }}")
+  .then(r => r.json())
+  .then(data => {
+    document.getElementById('profileBody').innerHTML = data.error
+      ? '<p class="text-muted small mb-0">' + data.error + '</p>'
+      : '<p class="mb-0">' + data.profile + '</p>';
+    document.getElementById('perfectBody').innerHTML = data.error
+      ? ''
+      : '<p class="mb-0">' + (data.perfect_biscuit || '') + '</p>';
+  })
+  .catch(() => {
+    document.getElementById('profileBody').innerHTML = '<p class="text-muted small mb-0">Could not load profile.</p>';
+    document.getElementById('perfectBody').innerHTML = '';
+  });
+</script>
+{% endif %}
+{% endblock %}

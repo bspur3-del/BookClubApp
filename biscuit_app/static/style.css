@@ -46,6 +46,9 @@ body { background-color: var(--bg); color: var(--cream); font-family: 'Segoe UI'
 
 .member-avatar { display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; border-radius: 50%; background: var(--gold); color: #1A0E08; font-weight: 700; font-size: 0.85rem; flex-shrink: 0; }
 .member-avatar.sm { width: 22px; height: 22px; font-size: 0.65rem; }
+.member-avatar-lg { display: inline-flex; align-items: center; justify-content: center; width: 56px; height: 56px; border-radius: 50%; background: var(--gold); color: #1A0E08; font-weight: 700; font-size: 1.5rem; flex-shrink: 0; }
+.member-link { color: var(--cream); }
+.member-link:hover { color: var(--gold); }
 
 .rank-badge { display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; border-radius: 50%; background: var(--bg-card-2); border: 1px solid var(--border); font-weight: 700; font-size: 0.8rem; color: var(--muted); flex-shrink: 0; }
 .rank-badge.gold   { background: #FFD700; color: #1A0E08; border-color: #FFD700; }
