@@ -268,6 +268,24 @@ def delete_rating(visit_id, member_name):
     return redirect(url_for("visit_detail", visit_id=visit_id))
 
 
+@app.route("/restaurant/<path:restaurant_name>")
+def restaurant_detail(restaurant_name):
+    visits = BiscuitVisit.query.filter_by(restaurant_name=restaurant_name)\
+        .order_by(BiscuitVisit.visit_date.desc()).all()
+    if not visits:
+        flash(f'No visits found for "{restaurant_name}".', "warning")
+        return redirect(url_for("index"))
+    all_ratings = [r for v in visits for r in v.ratings]
+    cat_avgs = {}
+    if all_ratings:
+        for cat in CATEGORIES:
+            cat_avgs[cat] = round(sum(getattr(r, cat) for r in all_ratings) / len(all_ratings), 2)
+    overall_avg = round(sum(r.overall() for r in all_ratings) / len(all_ratings), 2) if all_ratings else None
+    return render_template("restaurant.html", restaurant_name=restaurant_name,
+                           visits=visits, cat_avgs=cat_avgs, overall_avg=overall_avg,
+                           categories=CATEGORIES, category_labels=CATEGORY_LABELS)
+
+
 @app.route("/suggestions")
 def suggestions():
     return render_template("suggestions.html")

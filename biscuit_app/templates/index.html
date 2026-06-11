@@ -64,16 +64,18 @@
         {% if leaderboard %}
           <div class="list-group list-group-flush">
             {% for entry in leaderboard %}
-              <div class="list-group-item leaderboard-item">
-                <div class="d-flex align-items-center gap-2">
-                  <span class="rank-badge {% if loop.index == 1 %}gold{% elif loop.index == 2 %}silver{% elif loop.index == 3 %}bronze{% endif %}">{{ loop.index }}</span>
-                  <div class="flex-grow-1">
-                    <div class="fw-semibold">{{ entry.name }}</div>
-                    <div class="small text-muted">{{ entry.visits }} visit{{ 's' if entry.visits != 1 }}</div>
+              <a href="{{ url_for('restaurant_detail', restaurant_name=entry.name) }}" class="text-decoration-none">
+                <div class="list-group-item leaderboard-item">
+                  <div class="d-flex align-items-center gap-2">
+                    <span class="rank-badge {% if loop.index == 1 %}gold{% elif loop.index == 2 %}silver{% elif loop.index == 3 %}bronze{% endif %}">{{ loop.index }}</span>
+                    <div class="flex-grow-1">
+                      <div class="fw-semibold">{{ entry.name }}</div>
+                      <div class="small text-muted">{{ entry.visits }} visit{{ 's' if entry.visits != 1 }}</div>
+                    </div>
+                    <span class="score-badge-sm">{{ "%.2f"|format(entry.avg) }}</span>
                   </div>
-                  <span class="score-badge-sm">{{ "%.2f"|format(entry.avg) }}</span>
                 </div>
-              </div>
+              </a>
             {% endfor %}
           </div>
         {% else %}

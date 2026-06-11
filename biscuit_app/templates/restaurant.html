@@ -1,0 +1,92 @@
+{% extends "base.html" %}
+{% block title %}{{ restaurant_name }} - All Ratings{% endblock %}
+
+{% block content %}
+<div class="mb-4">
+  <a href="{{ url_for('index') }}" class="text-muted small text-decoration-none">&larr; Back</a>
+  <div class="d-flex align-items-center gap-3 mt-2">
+    <img class="restaurant-logo-lg" data-restaurant="{{ restaurant_name }}" alt="">
+    <div>
+      <h1 class="page-heading mb-0">{{ restaurant_name }}</h1>
+      <p class="text-muted mt-1 mb-0">{{ visits|length }} visit{{ 's' if visits|length != 1 }}</p>
+    </div>
+  </div>
+</div>
+
+{% if overall_avg is not none %}
+<div class="card mb-4">
+  <div class="card-header">All-Time Averages</div>
+  <div class="card-body">
+    <div class="text-center mb-4">
+      <div class="display-score">{{ "%.2f"|format(overall_avg) }}</div>
+      <div class="text-muted mt-1">Overall Average / 5.00</div>
+      <div class="stars mt-2">
+        {% for i in range(1, 6) %}
+          <span class="star {% if i <= overall_avg|round(0, 'floor') %}filled{% endif %}">&#9733;</span>
+        {% endfor %}
+      </div>
+    </div>
+    {% if cat_avgs %}
+    <div class="row g-2">
+      {% for cat in categories %}
+        <div class="col-6 col-md-4">
+          <div class="category-avg-card">
+            <div class="category-label">{{ category_labels[cat] }}</div>
+            <div class="category-score">{{ "%.1f"|format(cat_avgs[cat]) }}</div>
+            <div class="progress mt-1" style="height:5px;">
+              <div class="progress-bar" style="width:{{ (cat_avgs[cat] / 5 * 100)|int }}%; background:var(--gold);"></div>
+            </div>
+          </div>
+        </div>
+      {% endfor %}
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endif %}
+
+{% for visit in visits %}
+  {% set group_score = visit.group_overall() %}
+  <div class="card mb-3">
+    <div class="card-header d-flex justify-content-between align-items-center">
+      <span>{{ visit.visit_date.strftime('%B %d, %Y') }}</span>
+      {% if group_score is not none %}
+        <span class="score-badge-sm">{{ "%.2f"|format(group_score) }} group avg</span>
+      {% else %}
+        <span class="badge bg-secondary">No ratings yet</span>
+      {% endif %}
+    </div>
+    {% if visit.ratings %}
+    <div class="table-responsive">
+      <table class="table table-sm mb-0 ratings-table">
+        <thead>
+          <tr>
+            <th>Member</th>
+            {% for cat in categories %}<th class="text-center">{{ category_labels[cat] }}</th>{% endfor %}
+            <th class="text-center">Overall</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for rating in visit.ratings|sort(attribute='member_name') %}
+          <tr>
+            <td><span class="member-avatar sm">{{ rating.member_name[0] }}</span> {{ rating.member_name }}</td>
+            {% for cat in categories %}
+              <td class="text-center"><span class="inline-star">{{ rating[cat] }}&#9733;</span></td>
+            {% endfor %}
+            <td class="text-center fw-bold gold-text">{{ "%.1f"|format(rating.overall()) }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <div class="card-body">
+      <p class="text-muted small mb-0">No ratings recorded for this visit.</p>
+    </div>
+    {% endif %}
+    <div class="card-footer bg-transparent">
+      <a href="{{ url_for('visit_detail', visit_id=visit.id) }}" class="small text-muted text-decoration-none">View full visit &rarr;</a>
+    </div>
+  </div>
+{% endfor %}
+{% endblock %}
