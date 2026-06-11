@@ -27,8 +27,8 @@ CATEGORY_LABELS = {
     'taste': 'Taste',
     'texture': 'Texture',
     'biscuit': 'Biscuit',
-    'chicken': 'Chicken',
-    'presentation': 'Presentation',
+    'chicken': 'Meat',
+    'presentation': 'Sides',
 }
 
 
