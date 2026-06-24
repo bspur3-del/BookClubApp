@@ -7,7 +7,7 @@ from recommendations import (
     get_group_recommendation, get_member_recommendation,
     get_member_personality, get_group_personality,
     get_nomination_suggestions, get_boss_character,
-    get_trivia_questions,
+    get_trivia_questions, get_meeting_summary,
 )
 from dotenv import load_dotenv
 
@@ -288,6 +288,31 @@ def delete_book(book_id):
     db.session.commit()
     flash(f'"{book.title}" deleted.', "success")
     return redirect(url_for("index"))
+
+
+@app.route("/books/<int:book_id>/notes", methods=["POST"])
+def save_book_notes(book_id):
+    book = Book.query.get_or_404(book_id)
+    book.meeting_notes = request.form.get("meeting_notes", "").strip() or None
+    db.session.commit()
+    flash("Meeting notes saved.", "success")
+    return redirect(url_for("book_detail", book_id=book_id))
+
+
+@app.route("/books/<int:book_id>/meeting-summary")
+def book_meeting_summary(book_id):
+    book = Book.query.get_or_404(book_id)
+    if not book.meeting_notes:
+        return jsonify({"error": "No meeting notes saved for this book yet."})
+    member_ratings = [
+        {"name": r.member.name, "rating": r.rating}
+        for r in book.ratings
+    ]
+    try:
+        summary = get_meeting_summary(book.title, book.author, book.meeting_notes, member_ratings)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+    return jsonify({"summary": summary})
 
 
 @app.route("/books/<int:book_id>/recommend")
