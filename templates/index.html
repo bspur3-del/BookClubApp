@@ -17,7 +17,7 @@
 
   {% if upcoming_books %}
     <div class="row g-3">
-      {% for book in upcoming_books %}
+      {% for book in upcoming_books | sort(attribute='meeting_date') %}
         {% set avg = book.average() %}
         {% set approved = book.is_approved %}
         <div class="col-md-6">
@@ -32,14 +32,16 @@
                   </div>
                   <span class="badge bg-primary">Upcoming</span>
                 </div>
-                <p class="card-text mt-2 small text-muted">
-                  {% if book.meeting_date %}
-                    📅 Meeting: {{ book.meeting_date_display() }}
-                  {% else %}
-                    {{ book.display_period() }}
-                  {% endif %}
-                  {% if book.nominators %}· nominated by {{ book.nominators_display() }}{% endif %}
-                </p>
+                {% if book.meeting_date %}
+                  <p class="card-text mt-2 mb-1 fw-bold" style="font-size:0.95rem; color:#1a6fc4;">
+                    📅 {{ book.meeting_date_display() }}
+                  </p>
+                {% else %}
+                  <p class="card-text mt-2 small text-muted mb-1">{{ book.display_period() }}</p>
+                {% endif %}
+                {% if book.nominators %}
+                  <p class="card-text small text-muted mb-0">nominated by {{ book.nominators_display() }}</p>
+                {% endif %}
                 {% if avg is not none %}
                   <div class="mt-2">
                     <span class="rating-display">{{ "%.2f"|format(avg) }}</span>
