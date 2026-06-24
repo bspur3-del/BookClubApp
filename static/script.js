@@ -84,6 +84,8 @@ const HARDCODED_COVERS = {
   "kings of the wyld":       ["https://covers.openlibrary.org/b/isbn/9780316362474-M.jpg",
                                "https://covers.openlibrary.org/b/isbn/9780316362481-M.jpg",
                                "https://covers.openlibrary.org/b/isbn/9780316362498-M.jpg"],
+  "when the cranes fly south": ["https://books.google.com/books/content?id=-04vEQAAQBAJ&printsec=frontcover&img=1&zoom=1",
+                                 "https://covers.openlibrary.org/b/isbn/9798217006731-M.jpg"],
 };
 
 const COVER_MISS_TTL = 7 * 24 * 60 * 60 * 1000; // retry "not found" after 7 days

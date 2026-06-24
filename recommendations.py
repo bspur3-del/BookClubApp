@@ -478,7 +478,7 @@ def get_meeting_summary(book_title: str, author: str, notes: str, member_ratings
 
     message = _call_with_retry(
         model="claude-sonnet-4-6",
-        max_tokens=400,
+        max_tokens=600,
         messages=[{
             "role": "user",
             "content": (
@@ -487,11 +487,12 @@ def get_meeting_summary(book_title: str, author: str, notes: str, member_ratings
                 f"Group average rating: {avg_text}\n\n"
                 f"Individual member ratings:\n{ratings_text}\n\n"
                 f"Meeting notes from the AI notetaker:\n{notes}\n\n"
-                "Write a single, fluent paragraph (4–6 sentences) capturing the group's overall "
+                "Write a single, fluent paragraph of exactly 3–4 complete sentences capturing the group's overall "
                 "reaction to this book. Synthesize the ratings AND the discussion notes — mention "
                 "specific points members raised, highlight where the group agreed or disagreed, "
                 "and reflect the consensus or division in the Gonder Scale score. "
-                "Write in a warm, literary tone as if for a book club newsletter."
+                "Write in a warm, literary tone as if for a book club newsletter. "
+                "It is critical that your response ends with a complete sentence."
             ),
         }],
     )
