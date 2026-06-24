@@ -39,6 +39,8 @@ class Book(db.Model):
     nominator = db.relationship("Member", foreign_keys=[nominator_id], backref="nominations")
     ratings = db.relationship("Rating", backref="book", lazy=True, cascade="all, delete-orphan")
     meeting_notes = db.Column(db.Text, nullable=True)
+    is_upcoming = db.Column(db.Boolean, default=False, nullable=True)
+    meeting_date = db.Column(db.Date, nullable=True)
 
     def month_name(self):
         return MONTH_NAMES[self.month]
@@ -55,6 +57,11 @@ class Book(db.Model):
 
     def display_period(self):
         return f"{self.month_name()} {self.year}"
+
+    def meeting_date_display(self):
+        if self.meeting_date:
+            return self.meeting_date.strftime("%B %d, %Y")
+        return None
 
 
 class Rating(db.Model):

@@ -124,7 +124,9 @@ def member_personality(member_id):
 
 @app.route("/")
 def index():
-    books = Book.query.order_by(Book.year.desc(), Book.month.desc()).all()
+    all_books = Book.query.order_by(Book.year.desc(), Book.month.desc()).all()
+    upcoming_books = [b for b in all_books if b.is_upcoming]
+    books = [b for b in all_books if not b.is_upcoming]
     members = Member.query.order_by(Member.name).all()
     past_books = PastBook.query.order_by(PastBook.year.desc(), PastBook.month.desc()).all()
     try:
@@ -135,12 +137,11 @@ def index():
     except Exception as e:
         print(f"[index] past_book_ratings query failed: {e}", flush=True)
         past_book_ratings = {}
-        # Table may not exist yet — attempt to create it
         try:
             db.create_all()
         except Exception:
             pass
-    return render_template("index.html", books=books, members=members,
+    return render_template("index.html", books=books, upcoming_books=upcoming_books, members=members,
                            past_books=past_books, past_book_ratings=past_book_ratings,
                            approval_threshold=APPROVAL_THRESHOLD)
 
@@ -228,6 +229,32 @@ def add_book():
     db.session.add(Book(title=title, author=author, month=month, year=year, nominator_id=nominator_id))
     db.session.commit()
     flash(f'"{title}" added.', "success")
+    return redirect(url_for("index"))
+
+
+@app.route("/books/add-next", methods=["POST"])
+def add_next_book():
+    import datetime
+    title = request.form.get("title", "").strip()
+    author = request.form.get("author", "").strip()
+    meeting_date_str = request.form.get("meeting_date", "").strip()
+    nominator_id = request.form.get("nominator_id", type=int) or None
+    if not all([title, author, meeting_date_str]):
+        flash("Title, author, and meeting date are required.", "danger")
+        return redirect(url_for("index"))
+    try:
+        meeting_date = datetime.date.fromisoformat(meeting_date_str)
+    except ValueError:
+        flash("Invalid meeting date.", "danger")
+        return redirect(url_for("index"))
+    db.session.add(Book(
+        title=title, author=author,
+        month=meeting_date.month, year=meeting_date.year,
+        nominator_id=nominator_id,
+        is_upcoming=True, meeting_date=meeting_date,
+    ))
+    db.session.commit()
+    flash(f'"{title}" added to Next Books.', "success")
     return redirect(url_for("index"))
 
 
@@ -370,6 +397,8 @@ def rate_book(book_id):
             existing.rating = value
         else:
             db.session.add(Rating(member_id=member.id, book_id=book_id, rating=value))
+    if book.is_upcoming:
+        book.is_upcoming = False
     db.session.commit()
     flash("Ratings saved.", "success")
     return redirect(url_for("book_detail", book_id=book_id))

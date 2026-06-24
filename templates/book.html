@@ -22,7 +22,12 @@
         <div>
           <h4 class="mb-0">{{ book.title }}</h4>
           <small class="text-muted">
-            by {{ book.author }} &middot; {{ book.display_period() }}
+            by {{ book.author }} &middot;
+            {% if book.is_upcoming and book.meeting_date %}
+              📅 Meeting: {{ book.meeting_date_display() }}
+            {% else %}
+              {{ book.display_period() }}
+            {% endif %}
             {% if book.nominator %}&middot; nominated by
               <a href="{{ url_for('member_profile', member_id=book.nominator.id) }}">{{ book.nominator.name }}</a>
             {% endif %}
