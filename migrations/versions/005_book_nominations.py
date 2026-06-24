@@ -14,18 +14,20 @@ depends_on = None
 
 
 def upgrade():
-    op.create_table(
-        'book_nominations',
-        sa.Column('book_id', sa.Integer(), nullable=False),
-        sa.Column('member_id', sa.Integer(), nullable=False),
-        sa.ForeignKeyConstraint(['book_id'], ['books.id']),
-        sa.ForeignKeyConstraint(['member_id'], ['members.id']),
-        sa.PrimaryKeyConstraint('book_id', 'member_id'),
-    )
-    # Migrate existing single-nominator data into the new table
+    op.execute("""
+        CREATE TABLE IF NOT EXISTS book_nominations (
+            book_id INTEGER NOT NULL,
+            member_id INTEGER NOT NULL,
+            PRIMARY KEY (book_id, member_id),
+            FOREIGN KEY(book_id) REFERENCES books (id),
+            FOREIGN KEY(member_id) REFERENCES members (id)
+        )
+    """)
     op.execute("""
         INSERT INTO book_nominations (book_id, member_id)
-        SELECT id, nominator_id FROM books WHERE nominator_id IS NOT NULL
+        SELECT id, nominator_id FROM books
+        WHERE nominator_id IS NOT NULL
+        ON CONFLICT DO NOTHING
     """)
 
 
