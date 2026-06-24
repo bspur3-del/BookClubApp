@@ -28,7 +28,7 @@
         {% if nom_avg is not none %}
           <hr class="my-3">
           <div class="fw-semibold">{{ "%.2f"|format(nom_avg) }} <span class="text-muted fw-normal fs-6">avg group rating for their nominations</span></div>
-          <p class="text-muted small mb-0">across {{ member.nominations|length }} nominated book{{ 's' if member.nominations|length != 1 }}</p>
+          <p class="text-muted small mb-0">across {{ member.nominated_books|length }} nominated book{{ 's' if member.nominated_books|length != 1 }}</p>
         {% endif %}
       </div>
     </div>
@@ -69,11 +69,11 @@
           {% endfor %}
         </ul>
       </div>
-    {% if member.nominations %}
+    {% if member.nominated_books %}
       <div class="card mt-3">
         <div class="card-header fw-semibold">Books Nominated</div>
         <ul class="list-group list-group-flush">
-          {% for book in member.nominations | sort(attribute='year', reverse=True) %}
+          {% for book in member.nominated_books | sort(attribute='year', reverse=True) %}
             {% set group_avg = book.average() %}
             <li class="list-group-item d-flex justify-content-between align-items-center">
               <div>
