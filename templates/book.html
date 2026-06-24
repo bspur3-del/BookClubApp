@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% block title %}{{ book.title }} – Book Club Tracker{% endblock %}
-{% if book.ratings and has_api_key %}{% block body_data %}data-book-id="{{ book.id }}"{% endblock %}{% endif %}
+{% block body_data %}data-book-id="{{ book.id }}"{% if book.meeting_notes %} data-has-notes="1"{% endif %}{% endblock %}
 
 {% block content %}
 {% set avg = book.average() %}
@@ -51,6 +51,19 @@
         {% else %}
           <p class="text-center text-muted py-3">No ratings recorded yet.</p>
         {% endif %}
+      </div>
+    </div>
+
+    <div class="card mt-4">
+      <div class="card-header fw-semibold">Meeting Notes</div>
+      <div class="card-body">
+        <form method="POST" action="{{ url_for('save_book_notes', book_id=book.id) }}">
+          <div class="mb-2">
+            <textarea name="meeting_notes" class="form-control" rows="6"
+                      placeholder="Paste your AI notetaker's notes from this meeting here…">{{ book.meeting_notes or '' }}</textarea>
+          </div>
+          <button type="submit" class="btn btn-sm btn-primary">Save Notes</button>
+        </form>
       </div>
     </div>
 
@@ -109,6 +122,19 @@
         </p>
       </div>
     </div>
+
+    {% if has_api_key %}
+    <div class="card mt-3">
+      <div class="card-header fw-semibold">Discussion Summary</div>
+      <div class="card-body" id="meetingSummaryBody">
+        <p class="text-muted mb-0">
+          {% if not book.meeting_notes %}
+            Add meeting notes on the left to generate a discussion summary.
+          {% endif %}
+        </p>
+      </div>
+    </div>
+    {% endif %}
 
     <div class="mt-3 d-flex justify-content-end gap-2">
       <button class="btn btn-outline-secondary btn-sm" data-bs-toggle="modal" data-bs-target="#editBookModal">Edit Book</button>

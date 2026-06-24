@@ -38,6 +38,7 @@ class Book(db.Model):
     nominator_id = db.Column(db.Integer, db.ForeignKey("members.id"), nullable=True)
     nominator = db.relationship("Member", foreign_keys=[nominator_id], backref="nominations")
     ratings = db.relationship("Rating", backref="book", lazy=True, cascade="all, delete-orphan")
+    meeting_notes = db.Column(db.Text, nullable=True)
 
     def month_name(self):
         return MONTH_NAMES[self.month]
