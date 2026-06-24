@@ -28,8 +28,10 @@
             {% else %}
               {{ book.display_period() }}
             {% endif %}
-            {% if book.nominator %}&middot; nominated by
-              <a href="{{ url_for('member_profile', member_id=book.nominator.id) }}">{{ book.nominator.name }}</a>
+            {% if book.nominators %}&middot; nominated by
+              {% for nom in book.nominators | sort(attribute='name') %}
+                <a href="{{ url_for('member_profile', member_id=nom.id) }}">{{ nom.name }}</a>{% if not loop.last %}, {% endif %}
+              {% endfor %}
             {% endif %}
           </small>
         </div>
@@ -186,12 +188,15 @@
           </div>
           <div class="mb-3 mt-3">
             <label class="form-label">Nominated by</label>
-            <select name="nominator_id" class="form-select">
-              <option value="">— Unknown —</option>
-              {% for member in members %}
-                <option value="{{ member.id }}" {% if member.id == book.nominator_id %}selected{% endif %}>{{ member.name }}</option>
-              {% endfor %}
-            </select>
+            {% set nominator_ids = book.nominators | map(attribute='id') | list %}
+            {% for member in members | sort(attribute='name') %}
+              <div class="form-check">
+                <input class="form-check-input" type="checkbox" name="nominator_id"
+                       value="{{ member.id }}" id="edit_nom_{{ member.id }}"
+                       {% if member.id in nominator_ids %}checked{% endif %}>
+                <label class="form-check-label" for="edit_nom_{{ member.id }}">{{ member.name }}</label>
+              </div>
+            {% endfor %}
           </div>
         </div>
         <div class="modal-footer">

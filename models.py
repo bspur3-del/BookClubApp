@@ -9,6 +9,12 @@ MONTH_NAMES = [
 
 APPROVAL_THRESHOLD = 3.6
 
+book_nominations = db.Table(
+    "book_nominations",
+    db.Column("book_id", db.Integer, db.ForeignKey("books.id"), primary_key=True),
+    db.Column("member_id", db.Integer, db.ForeignKey("members.id"), primary_key=True),
+)
+
 
 class Member(db.Model):
     __tablename__ = "members"
@@ -22,7 +28,7 @@ class Member(db.Model):
         return sum(r.rating for r in self.ratings) / len(self.ratings)
 
     def nomination_average(self):
-        scored = [b.average() for b in self.nominations if b.average() is not None]
+        scored = [b.average() for b in self.nominated_books if b.average() is not None]
         if not scored:
             return None
         return sum(scored) / len(scored)
@@ -35,8 +41,10 @@ class Book(db.Model):
     author = db.Column(db.String(200), nullable=False)
     month = db.Column(db.Integer, nullable=False)
     year = db.Column(db.Integer, nullable=False)
-    nominator_id = db.Column(db.Integer, db.ForeignKey("members.id"), nullable=True)
-    nominator = db.relationship("Member", foreign_keys=[nominator_id], backref="nominations")
+    nominators = db.relationship(
+        "Member", secondary=book_nominations,
+        backref=db.backref("nominated_books", lazy=True), lazy=True
+    )
     ratings = db.relationship("Rating", backref="book", lazy=True, cascade="all, delete-orphan")
     meeting_notes = db.Column(db.Text, nullable=True)
     is_upcoming = db.Column(db.Boolean, default=False, nullable=True)
@@ -62,6 +70,11 @@ class Book(db.Model):
         if self.meeting_date:
             return self.meeting_date.strftime("%B %d, %Y")
         return None
+
+    def nominators_display(self):
+        if not self.nominators:
+            return None
+        return ", ".join(n.name for n in sorted(self.nominators, key=lambda m: m.name))
 
 
 class Rating(db.Model):

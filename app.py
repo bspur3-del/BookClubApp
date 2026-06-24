@@ -219,14 +219,17 @@ def add_book():
     author = request.form.get("author", "").strip()
     month = request.form.get("month", type=int)
     year = request.form.get("year", type=int)
-    nominator_id = request.form.get("nominator_id", type=int) or None
+    nominator_ids = [int(x) for x in request.form.getlist("nominator_id") if x]
     if not all([title, author, month, year]):
         flash("All book fields are required.", "danger")
         return redirect(url_for("index"))
     if not (1 <= month <= 12):
         flash("Month must be between 1 and 12.", "danger")
         return redirect(url_for("index"))
-    db.session.add(Book(title=title, author=author, month=month, year=year, nominator_id=nominator_id))
+    book = Book(title=title, author=author, month=month, year=year)
+    if nominator_ids:
+        book.nominators = Member.query.filter(Member.id.in_(nominator_ids)).all()
+    db.session.add(book)
     db.session.commit()
     flash(f'"{title}" added.', "success")
     return redirect(url_for("index"))
@@ -238,7 +241,7 @@ def add_next_book():
     title = request.form.get("title", "").strip()
     author = request.form.get("author", "").strip()
     meeting_date_str = request.form.get("meeting_date", "").strip()
-    nominator_id = request.form.get("nominator_id", type=int) or None
+    nominator_ids = [int(x) for x in request.form.getlist("nominator_id") if x]
     if not all([title, author, meeting_date_str]):
         flash("Title, author, and meeting date are required.", "danger")
         return redirect(url_for("index"))
@@ -247,12 +250,14 @@ def add_next_book():
     except ValueError:
         flash("Invalid meeting date.", "danger")
         return redirect(url_for("index"))
-    db.session.add(Book(
+    book = Book(
         title=title, author=author,
         month=meeting_date.month, year=meeting_date.year,
-        nominator_id=nominator_id,
         is_upcoming=True, meeting_date=meeting_date,
-    ))
+    )
+    if nominator_ids:
+        book.nominators = Member.query.filter(Member.id.in_(nominator_ids)).all()
+    db.session.add(book)
     db.session.commit()
     flash(f'"{title}" added to Next Books.', "success")
     return redirect(url_for("index"))
@@ -291,7 +296,7 @@ def edit_book(book_id):
     author = request.form.get("author", "").strip()
     month = request.form.get("month", type=int)
     year = request.form.get("year", type=int)
-    nominator_id = request.form.get("nominator_id", type=int) or None
+    nominator_ids = [int(x) for x in request.form.getlist("nominator_id") if x]
     if not all([title, author, month, year]):
         flash("All book fields are required.", "danger")
         return redirect(url_for("book_detail", book_id=book_id))
@@ -302,7 +307,7 @@ def edit_book(book_id):
     book.author = author
     book.month = month
     book.year = year
-    book.nominator_id = nominator_id
+    book.nominators = Member.query.filter(Member.id.in_(nominator_ids)).all() if nominator_ids else []
     db.session.commit()
     flash(f'"{title}" updated.', "success")
     return redirect(url_for("book_detail", book_id=book_id))
