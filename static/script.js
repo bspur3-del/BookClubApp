@@ -7,6 +7,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const clubPage = document.body.dataset.clubPage;
 
   if (bookId) loadGroupRec(bookId);
+  if (bookId && document.body.dataset.hasNotes) loadMeetingSummary(bookId);
   if (memberId) loadMemberRec(memberId);
   if (memberId) loadMemberPersonality(memberId);
   if (clubPage) { loadGroupPersonality(); loadClubRec(); }
@@ -249,6 +250,23 @@ async function loadGroupRec(bookId) {
     await renderRecCard(body, await res.json());
   } catch {
     body.innerHTML = `<p class="text-danger mb-0">Failed to load recommendation. Check your API key.</p>`;
+  }
+}
+
+async function loadMeetingSummary(bookId) {
+  const body = document.getElementById("meetingSummaryBody");
+  if (!body) return;
+  body.innerHTML = `<div class="rec-spinner"><div class="spinner-border spinner-border-sm"></div> Generating discussion summary…</div>`;
+  try {
+    const res = await fetch(`/books/${bookId}/meeting-summary`);
+    const data = await res.json();
+    if (data.error) {
+      body.innerHTML = `<p class="text-muted fst-italic mb-0">${escapeHtml(data.error)}</p>`;
+    } else {
+      body.innerHTML = `<p class="rec-text mb-0">${escapeHtml(data.summary)}</p>`;
+    }
+  } catch {
+    body.innerHTML = `<p class="text-danger mb-0">Failed to generate summary. Check your API key.</p>`;
   }
 }
 

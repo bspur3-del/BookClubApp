@@ -466,6 +466,38 @@ def _verify_trivia_questions(candidates: list[dict]) -> list[dict]:
     return kept
 
 
+def get_meeting_summary(book_title: str, author: str, notes: str, member_ratings: list[dict]) -> str:
+    """Generate a one-paragraph summary of the group's discussion and ratings for a book."""
+    ratings_text = "\n".join(
+        f"- {r['name']}: {r['rating']}/5"
+        for r in member_ratings
+    ) if member_ratings else "No individual ratings recorded."
+
+    avg = sum(r["rating"] for r in member_ratings) / len(member_ratings) if member_ratings else None
+    avg_text = f"{avg:.2f}/5 (Gonder Scale)" if avg is not None else "no ratings yet"
+
+    message = _call_with_retry(
+        model="claude-sonnet-4-6",
+        max_tokens=400,
+        messages=[{
+            "role": "user",
+            "content": (
+                f"You are a literary journalist summarizing a book club meeting.\n\n"
+                f"Book: \"{book_title}\" by {author}\n"
+                f"Group average rating: {avg_text}\n\n"
+                f"Individual member ratings:\n{ratings_text}\n\n"
+                f"Meeting notes from the AI notetaker:\n{notes}\n\n"
+                "Write a single, fluent paragraph (4–6 sentences) capturing the group's overall "
+                "reaction to this book. Synthesize the ratings AND the discussion notes — mention "
+                "specific points members raised, highlight where the group agreed or disagreed, "
+                "and reflect the consensus or division in the Gonder Scale score. "
+                "Write in a warm, literary tone as if for a book club newsletter."
+            ),
+        }],
+    )
+    return message.content[0].text
+
+
 def get_trivia_questions(books: list[dict]) -> list[dict]:
     """
     Generate trivia questions using a two-pass approach:
